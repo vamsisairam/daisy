@@ -98,6 +98,7 @@ create policy "Users can insert own memories" on memories for insert with check 
 create table if not exists conversation_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users on delete cascade not null,
+  session_id text unique,
   messages jsonb not null default '[]',
   summary text,
   message_count int default 0,

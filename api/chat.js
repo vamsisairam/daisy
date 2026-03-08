@@ -49,11 +49,15 @@ ${memCtx}`,
 
     letter: `Write a beautiful, personal letter to ${userName} based on everything you know about their inner world. Write as Daisy — part caring friend, part wise therapist who truly sees them. Reference specific patterns and memories. Gently name something they might not have fully seen about themselves. Be warm, honest, and real — not overly poetic. End with genuine encouragement. Sign off as "Daisy 🌼". 4-5 paragraphs.${memCtx}`,
 
-    summarize: `You are summarizing a conversation between ${userName} and Daisy (an AI companion). 
-Write a warm, diary-style summary in 2-3 sentences — written as if ${userName} is narrating their own diary entry.
-Use first person ("I talked about...", "I was feeling...", "Daisy helped me see...").
-Capture the emotional tone and the key thing(s) discussed. Be human and real, not clinical.
-Return ONLY the summary text — no title, no date, no extra formatting.`,
+    summarize: `You are writing a detailed diary entry for ${userName} based on their conversation with Daisy (an AI companion).
+
+Write 3-5 sentences in first person, as if ${userName} is writing in their own diary tonight.
+Cover: what topics came up, how they were feeling, any insights or shifts in perspective, and what Daisy helped them see or work through.
+Be warm, honest, and specific — reference actual things discussed. Don't be generic.
+Use natural diary language: "I talked about...", "I was feeling...", "I realized...", "Daisy pointed out...", "It helped to say out loud that..."
+End with one sentence capturing the emotional tone of the conversation overall.
+
+Return ONLY the diary text — no title, no date, no label, no extra formatting.`,
   };
 
   try {
@@ -76,7 +80,7 @@ Return ONLY the summary text — no title, no date, no extra formatting.`,
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: mode === 'letter' ? 900 : mode === 'extract' ? 400 : mode === 'summarize' ? 200 : 600,
+        max_tokens: mode === 'letter' ? 900 : mode === 'extract' ? 400 : mode === 'summarize' ? 400 : 600,
         system: systems[mode] || systems.chat,
         messages: anthropicMessages,
       }),
