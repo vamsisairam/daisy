@@ -48,9 +48,7 @@ export default function Landing() {
 
       {/* Nav */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 36px', position: 'relative', zIndex: 10 }}>
-        <div style={{ fontFamily: 'Cinzel, serif', fontSize: 20, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.18em', display: 'flex', alignItems: 'center', gap: 8 }}>
-          🌼 DAISY
-        </div>
+        <div style={{ fontSize: 22 }}>🌼</div>
         <button onClick={() => nav('/auth')}
           style={{ padding: '10px 28px', background: 'transparent', border: '1px solid rgba(201,168,76,0.45)', borderRadius: 8, color: '#C9A84C', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.2s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)'; e.currentTarget.style.borderColor = '#C9A84C' }}
