@@ -20,13 +20,23 @@ export default function Auth() {
       if (mode === 'signup') {
         const { data, error: err } = await supabase.auth.signUp({ email, password })
         if (err) throw err
+        // identities is empty when the email already exists (Supabase silent duplicate)
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          throw new Error('An account with this email already exists. Please sign in instead.')
+        }
         if (data.user) {
           await supabase.from('profiles').upsert({ id: data.user.id, name: name || 'Wanderer' })
-          setSuccess('Check your email to confirm, then sign in.')
+          setSuccess('Account created! You can sign in now.')
         }
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-        if (err) throw err
+        if (err) {
+          // Make Supabase's generic errors friendlier
+          if (err.message.includes('Invalid login credentials')) {
+            throw new Error('Wrong email or password. Please try again.')
+          }
+          throw err
+        }
         nav('/sanctum')
       }
     } catch (err) { setError(err.message) }

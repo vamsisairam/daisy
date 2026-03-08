@@ -506,7 +506,7 @@ const NAV = [
   {id:'chat',      icon:'🌼', label:'Converse'},
   {id:'constellation',icon:'✦',label:'Stars'},
   {id:'letters',   icon:'✉', label:'Letters'},
-  {id:'logs',      icon:'📓', label:'Logs'},
+  {id:'logs',      icon:'📓', label:'Diary'},
   {id:'profile',   icon:'◉', label:'Profile'},
 ]
 
@@ -647,7 +647,7 @@ export default function Sanctum({ session }) {
       <div className="main-area" style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minWidth:0}}>
         {/* Topbar */}
         <div className="topbar" style={{height:54,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 clamp(14px,3vw,24px)',borderBottom:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.15)',flexShrink:0}}>
-          <div style={{fontFamily:'Cinzel,serif',fontSize:view==='chat'?20:15,fontWeight:700,color:'#C9A84C',letterSpacing:'0.1em',transition:'font-size 0.15s'}}>
+          <div style={{fontFamily:'Cinzel,serif',fontSize:20,fontWeight:700,color:'#C9A84C',letterSpacing:'0.1em'}}>
             {NAV.find(n=>n.id===view)?.label||'Daisy'}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:14}}>
