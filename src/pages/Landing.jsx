@@ -1,92 +1,71 @@
 import { useNavigate } from 'react-router-dom'
 
-const STARS = Array.from({ length: 80 }, (_, i) => ({
+const STARS = Array.from({ length: 70 }, () => ({
   x: Math.random() * 100, y: Math.random() * 100,
-  size: Math.random() * 2 + 0.5,
-  delay: Math.random() * 4, dur: Math.random() * 3 + 2,
+  s: Math.random() * 2 + 0.4,
+  d: Math.random() * 5, dur: Math.random() * 3 + 2.5,
 }))
-
-const EMOTIONS = [
-  { label: 'joy', x: 20, y: 30, color: '#C9A84C' },
-  { label: 'longing', x: 70, y: 20, color: '#4a9eff' },
-  { label: 'growth', x: 55, y: 60, color: '#52c77a' },
-  { label: 'love', x: 30, y: 65, color: '#e87676' },
-  { label: 'hope', x: 80, y: 70, color: '#b08fde' },
-  { label: 'clarity', x: 10, y: 75, color: '#5ec8c8' },
-]
 
 export default function Landing() {
   const nav = useNavigate()
-
   return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 30% 20%, #0d1f35 0%, #050c18 60%)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 30% 20%, #0d1f38 0%, #060d1a 65%)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Stars */}
       {STARS.map((st, i) => (
-        <div key={i} style={{ position: 'absolute', left: `${st.x}%`, top: `${st.y}%`, width: st.size, height: st.size, borderRadius: '50%', background: '#fff', animation: `twinkle ${st.dur}s ease-in-out ${st.delay}s infinite`, pointerEvents: 'none' }} />
+        <div key={i} style={{ position: 'absolute', left: `${st.x}%`, top: `${st.y}%`, width: st.s, height: st.s, borderRadius: '50%', background: '#fff', animation: `twinkle ${st.dur}s ease-in-out ${st.d}s infinite`, pointerEvents: 'none' }} />
       ))}
-
-      {/* Ambient glow */}
-      <div style={{ position: 'absolute', top: '20%', left: '20%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
-      {/* Constellation preview — hidden on mobile */}
-      <div style={{ position: 'absolute', right: '5%', top: '15%', width: 280, height: 280, opacity: 0.55, display: 'none' }} className="constellation-preview">
-        <svg viewBox="0 0 300 300" fill="none">
-          {EMOTIONS.map((e, i) => (
-            <g key={i}>
-              {i > 0 && <line x1={EMOTIONS[i-1].x*3} y1={EMOTIONS[i-1].y*3} x2={e.x*3} y2={e.y*3} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5"/>}
-              <circle cx={e.x*3} cy={e.y*3} r={5} fill={e.color} opacity={0.75} style={{ animation: `twinkle ${2+i*0.4}s ease-in-out ${i*0.3}s infinite` }}/>
-              <text x={e.x*3+9} y={e.y*3+4} fill={e.color} fontSize="9" fontFamily="DM Mono, monospace" opacity={0.5}>{e.label}</text>
-            </g>
-          ))}
-        </svg>
-      </div>
+      <div style={{ position: 'absolute', top: '15%', left: '15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
       {/* Nav */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 32px', position: 'relative', zIndex: 10 }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 32px', position: 'relative', zIndex: 10 }}>
         <div style={{ fontFamily: 'Cinzel, serif', fontSize: 22, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ animation: 'pulse 3s ease infinite' }}>🌼</span> DAISY
+          🌼 DAISY
         </div>
         <button onClick={() => nav('/auth')}
-          style={{ padding: '10px 28px', background: 'transparent', border: '1px solid #C9A84C88', borderRadius: 3, color: '#C9A84C', fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 600, letterSpacing: '0.18em', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase' }}
-          onMouseEnter={e => { e.target.style.background = 'rgba(201,168,76,0.1)'; e.target.style.borderColor = '#C9A84C' }}
-          onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.borderColor = '#C9A84C88' }}>
-          Enter
+          style={{ padding: '11px 30px', background: 'transparent', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 8, color: '#C9A84C', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.2s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.1)'; e.currentTarget.style.borderColor = '#C9A84C' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)' }}>
+          Enter →
         </button>
       </nav>
 
       {/* Hero */}
-      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '60px 24px 60px', position: 'relative', zIndex: 10 }}>
-        <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, fontWeight: 500, letterSpacing: '0.28em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 28, opacity: 0.9 }}>
-          An AI that remembers you
-        </p>
-        <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(38px, 6vw, 76px)', fontWeight: 700, lineHeight: 1.15, color: '#e8dcc8', marginBottom: 28, maxWidth: 820 }}>
+      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '48px 24px 56px', position: 'relative', zIndex: 10 }}>
+        <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 20, padding: '5px 16px', marginBottom: 28 }}>
+          <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, fontWeight: 500, letterSpacing: '0.2em', color: '#C9A84C', textTransform: 'uppercase' }}>An AI that remembers you</span>
+        </div>
+
+        <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(34px, 6vw, 72px)', fontWeight: 700, lineHeight: 1.15, color: '#eae0cc', marginBottom: 24, maxWidth: 800 }}>
           Your inner world,<br />
-          <em style={{ color: '#C9A84C', fontStyle: 'italic' }}>woven into light</em>
+          <span style={{ color: '#C9A84C' }}>woven into light</span>
         </h1>
-        <p style={{ fontSize: 'clamp(17px, 2vw, 21px)', fontWeight: 400, color: '#a89880', maxWidth: 540, lineHeight: 1.75, fontStyle: 'italic', marginBottom: 52 }}>
-          Daisy remembers every conversation, grows with you, and maps your emotional universe as a <strong>living constellation</strong> — uniquely yours.
+
+        <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', fontWeight: 400, color: '#8a7f72', maxWidth: 520, lineHeight: 1.75, marginBottom: 44 }}>
+          Daisy remembers every conversation, grows with you, and maps your emotional universe as a <strong style={{ color: '#b0a090', fontWeight: 600 }}>living constellation</strong> — uniquely yours.
         </p>
+
         <button onClick={() => nav('/auth')}
-          style={{ display: 'inline-block', padding: '16px 48px', background: 'transparent', border: '1px solid #C9A84C88', borderRadius: 3, color: '#C9A84C', fontFamily: 'Cinzel, serif', fontSize: 14, fontWeight: 600, letterSpacing: '0.2em', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase' }}
-          onMouseEnter={e => { e.target.style.background = 'rgba(201,168,76,0.12)'; e.target.style.borderColor = '#C9A84C'; e.target.style.boxShadow = '0 0 30px rgba(201,168,76,0.15)' }}
-          onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.borderColor = '#C9A84C88'; e.target.style.boxShadow = 'none' }}>
+          style={{ padding: '16px 52px', background: 'linear-gradient(135deg, rgba(201,168,76,0.18), rgba(201,168,76,0.08))', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, color: '#C9A84C', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.04em' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.22)'; e.currentTarget.style.boxShadow = '0 0 32px rgba(201,168,76,0.2)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(201,168,76,0.18), rgba(201,168,76,0.08))'; e.currentTarget.style.boxShadow = 'none' }}>
           Begin Your Journey
         </button>
       </section>
 
-      {/* Features */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, padding: '0 32px 72px', position: 'relative', zIndex: 10, maxWidth: 1000, margin: '0 auto', width: '100%' }}>
+      {/* Feature cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16, padding: '0 28px 64px', maxWidth: 980, margin: '0 auto', width: '100%', position: 'relative', zIndex: 10 }}>
         {[
-          { icon: '🧠', title: 'Persistent Memory', text: 'Daisy remembers every conversation. She builds a picture of you over time — your fears, joys, dreams.' },
-          { icon: '✦', title: 'Living Constellation', text: 'Your memories become stars. Watch your inner world grow into a map only you possess.' },
-          { icon: '✉', title: 'Personal Letters', text: 'Daisy writes you letters — poetic reflections drawn from everything she knows about you.' },
-          { icon: '◎', title: 'Friend + Therapist', text: 'She talks back, shares opinions, reads the room — and goes deep when you need her to.' },
+          { icon: '🧠', title: 'Persistent Memory', text: 'Remembers every conversation. Builds a picture of you over time.' },
+          { icon: '✦', title: 'Living Constellation', text: 'Your memories become stars — a visual map of your emotional world.' },
+          { icon: '✉', title: 'Personal Letters', text: 'Daisy writes you letters drawn from everything she knows about you.' },
+          { icon: '💬', title: 'Friend + Therapist', text: 'Talks back, shares opinions, goes deep when you need it.' },
         ].map((f, i) => (
-          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, padding: '28px 22px', backdropFilter: 'blur(8px)' }}>
-            <div style={{ fontSize: 26, marginBottom: 14 }}>{f.icon}</div>
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 700, letterSpacing: '0.1em', color: '#C9A84C', marginBottom: 10, textTransform: 'uppercase' }}>{f.title}</div>
-            <div style={{ fontSize: 15, color: '#7a7065', lineHeight: 1.7, fontStyle: 'italic' }}>{f.text}</div>
+          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '24px 20px', transition: 'border-color 0.2s, background 0.2s', cursor: 'default' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)'; e.currentTarget.style.background = 'rgba(201,168,76,0.03)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}>
+            <div style={{ fontSize: 28, marginBottom: 14 }}>{f.icon}</div>
+            <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: '#C9A84C', marginBottom: 8, textTransform: 'uppercase' }}>{f.title}</div>
+            <div style={{ fontSize: 15, fontWeight: 400, color: '#6a6258', lineHeight: 1.65 }}>{f.text}</div>
           </div>
         ))}
       </div>

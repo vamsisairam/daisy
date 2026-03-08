@@ -1,24 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Mono:wght@300;400;500&family=Cinzel:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #050c18;
-  --bg2: #091220;
-  --surface: rgba(255,255,255,0.04);
-  --border: rgba(255,255,255,0.08);
+  --bg: #060d1a;
+  --bg2: #091422;
+  --surface: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.09);
   --gold: #C9A84C;
-  --gold-glow: #C9A84C44;
-  --text: #e8dcc8;
-  --muted: #7a7065;
-  --accent: #4a9eff;
-
-  /* Base font sizes — slightly larger */
-  --fs-xs: 12px;
-  --fs-sm: 14px;
-  --fs-md: 17px;
-  --fs-lg: 20px;
-  --fs-xl: 24px;
+  --gold-dim: rgba(201,168,76,0.12);
+  --gold-glow: rgba(201,168,76,0.25);
+  --text: #eae0cc;
+  --text2: #b0a090;
+  --muted: #6a6258;
+  --tab-h: 68px;
 }
 
 html, body, #root { height: 100%; }
@@ -26,80 +21,126 @@ html, body, #root { height: 100%; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: var(--fs-md);
-  line-height: 1.7;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* prevent bounce/glitch on mobile */
+  overscroll-behavior: none;
 }
 
-/* Mobile bump */
-@media (max-width: 600px) {
-  :root {
-    --fs-xs: 12px;
-    --fs-sm: 14px;
-    --fs-md: 17px;
-    --fs-lg: 20px;
-    --fs-xl: 22px;
-  }
+textarea, input, button, select {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
+
+textarea:focus, input:focus { outline: none; }
+button { cursor: pointer; }
+
+/* Prevent text selection glitch on tap */
+button, .nav-btn { -webkit-tap-highlight-color: transparent; user-select: none; }
 
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-textarea, input, button {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-}
-
-textarea:focus, input:focus { outline: none; }
-
-/* Global strong/bold style */
-strong, b { color: #e8dcc8; font-weight: 700; }
-
+/* ── Animations ──────────────────────────────────────── */
 @keyframes twinkle {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.4); }
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.5); }
 }
-
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
-
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 6px var(--gold-glow); }
-  50% { box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow); }
+  50%       { box-shadow: 0 0 22px var(--gold-glow), 0 0 44px rgba(201,168,76,0.12); }
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 1; }
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+/* ── Desktop sidebar ─────────────────────────────────── */
+.sidebar {
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 28px;
+  border-right: 1px solid var(--border);
+  gap: 4px;
+  background: rgba(0,0,0,0.25);
+  flex-shrink: 0;
 }
 
-/* Mobile layout helpers */
-@media (max-width: 600px) {
-  /* Sidebar becomes a bottom tab bar on mobile */
+.nav-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background 0.18s, color 0.18s, transform 0.12s;
+}
+.nav-btn:hover  { background: rgba(255,255,255,0.06); color: var(--text2); }
+.nav-btn:active { transform: scale(0.91); }
+.nav-btn.active { background: var(--gold-dim); color: var(--gold); }
+.nav-btn.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 20px;
+  background: var(--gold);
+  border-radius: 0 3px 3px 0;
+}
+
+/* ── Mobile: bottom tab bar ──────────────────────────── */
+@media (max-width: 640px) {
   .sidebar {
     position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    bottom: 0; left: 0; right: 0;
     width: 100% !important;
-    height: 60px !important;
+    height: var(--tab-h) !important;
     flex-direction: row !important;
     justify-content: space-around !important;
     align-items: center !important;
-    padding: 0 !important;
+    padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
     border-right: none !important;
-    border-top: 1px solid rgba(255,255,255,0.08) !important;
-    z-index: 50 !important;
+    border-top: 1px solid var(--border) !important;
+    gap: 0 !important;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    background: rgba(6,13,26,0.92) !important;
   }
   .sidebar .logo-icon { display: none !important; }
-  .main-area { padding-bottom: 60px !important; }
+  .nav-btn { width: 52px; height: 52px; border-radius: 14px; font-size: 22px; }
+  .nav-btn.active::before { display: none; }
+  .nav-btn.active { background: var(--gold-dim); }
+
+  .main-area {
+    padding-bottom: var(--tab-h) !important;
+    overflow: hidden;
+  }
+
+  /* Chat messages — full width on mobile */
+  .msg-bubble { max-width: 88% !important; }
+
+  /* Topbar smaller on mobile */
+  .topbar { height: 50px !important; padding: 0 16px !important; }
 }

@@ -2,11 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-const STARS = Array.from({ length: 40 }, () => ({
-  x: Math.random() * 100, y: Math.random() * 100,
-  s: Math.random() * 1.5 + 0.5, d: Math.random() * 4, dur: Math.random() * 3 + 2,
-}))
-
 export default function Auth() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
@@ -34,79 +29,69 @@ export default function Auth() {
         if (err) throw err
         nav('/sanctum')
       }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { setError(err.message) }
+    finally { setLoading(false) }
   }
 
   const inp = {
-    width: '100%',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 4,
-    padding: '14px 18px',
-    color: '#e8dcc8',
-    fontSize: 17,
-    fontFamily: 'Cormorant Garamond, serif',
-    fontWeight: 400,
-    transition: 'border-color 0.2s',
-    marginBottom: 14,
+    width: '100%', background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
+    padding: '14px 18px', color: '#eae0cc',
+    fontSize: 16, fontWeight: 400,
+    transition: 'border-color 0.2s', marginBottom: 12,
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 40% 30%, #0d1f35 0%, #050c18 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: 24 }}>
-      {STARS.map((st, i) => (
-        <div key={i} style={{ position: 'absolute', left: `${st.x}%`, top: `${st.y}%`, width: st.s, height: st.s, borderRadius: '50%', background: '#fff', animation: `twinkle ${st.dur}s ease-in-out ${st.d}s infinite` }} />
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 40% 30%, #0d1f38 0%, #060d1a 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, position: 'relative', overflow: 'hidden' }}>
+
+      {/* bg stars */}
+      {Array.from({length:30}).map((_,i)=>(
+        <div key={i} style={{ position:'absolute', left:`${Math.random()*100}%`, top:`${Math.random()*100}%`, width: Math.random()*1.5+0.5, height: Math.random()*1.5+0.5, borderRadius:'50%', background:'#fff', opacity: 0.3, animation:`twinkle ${Math.random()*3+2}s ease-in-out ${Math.random()*4}s infinite` }}/>
       ))}
 
-      <div style={{ width: '100%', maxWidth: 420, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 'clamp(32px, 5vw, 52px) clamp(24px, 5vw, 44px)', backdropFilter: 'blur(20px)', boxShadow: '0 32px 80px rgba(0,0,0,0.5)', animation: 'fadeUp 0.6s ease both', position: 'relative', zIndex: 1 }}>
+      <div style={{ width: '100%', maxWidth: 400, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: 'clamp(28px, 5vw, 48px)', backdropFilter: 'blur(24px)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', position: 'relative', zIndex: 1, animation: 'fadeUp 0.5s ease both' }}>
 
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontFamily: 'Cinzel, serif', fontSize: 32, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', marginBottom: 8, animation: 'pulse 3s ease infinite' }}>
-            🌼 DAISY
-          </div>
-          <div style={{ color: '#7a7065', fontSize: 15, fontStyle: 'italic', fontWeight: 400 }}>
-            {mode === 'login' ? 'Welcome back, wanderer' : 'Begin your constellation'}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{ fontFamily: 'Cinzel, serif', fontSize: 30, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.12em', marginBottom: 8 }}>🌼 DAISY</div>
+          <div style={{ fontSize: 15, fontWeight: 400, color: '#6a6258' }}>
+            {mode === 'login' ? 'Welcome back' : 'Create your account'}
           </div>
         </div>
 
         {mode === 'signup' && (
           <input placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={inp}
-            onFocus={e => e.target.style.borderColor = '#C9A84C88'}
+            onFocus={e => e.target.style.borderColor = 'rgba(201,168,76,0.6)'}
             onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
         )}
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inp}
-          onFocus={e => e.target.style.borderColor = '#C9A84C88'}
+        <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={inp}
+          onFocus={e => e.target.style.borderColor = 'rgba(201,168,76,0.6)'}
           onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
         <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handle()}
-          style={{ ...inp, marginBottom: 28 }}
-          onFocus={e => e.target.style.borderColor = '#C9A84C88'}
+          style={{ ...inp, marginBottom: 22 }}
+          onFocus={e => e.target.style.borderColor = 'rgba(201,168,76,0.6)'}
           onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
 
-        {error && <div style={{ color: '#e87676', fontSize: 14, fontWeight: 600, marginBottom: 16, fontStyle: 'italic', textAlign: 'center' }}>{error}</div>}
-        {success && <div style={{ color: '#52c77a', fontSize: 14, fontWeight: 600, marginBottom: 16, fontStyle: 'italic', textAlign: 'center' }}>{success}</div>}
+        {error && <div style={{ background: 'rgba(232,118,118,0.1)', border: '1px solid rgba(232,118,118,0.25)', borderRadius: 8, padding: '10px 14px', color: '#e87676', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>{error}</div>}
+        {success && <div style={{ background: 'rgba(82,199,122,0.1)', border: '1px solid rgba(82,199,122,0.25)', borderRadius: 8, padding: '10px 14px', color: '#52c77a', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>{success}</div>}
 
         <button onClick={handle} disabled={loading}
-          style={{ width: '100%', padding: '15px', background: loading ? 'rgba(201,168,76,0.1)' : 'transparent', border: '1px solid #C9A84C88', borderRadius: 4, color: '#C9A84C', fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.3s', marginBottom: 22 }}
-          onMouseEnter={e => { if (!loading) e.target.style.background = 'rgba(201,168,76,0.1)' }}
-          onMouseLeave={e => { if (!loading) e.target.style.background = 'transparent' }}>
-          {loading ? '🌼' : mode === 'login' ? 'Enter Sanctum' : 'Create Account'}
+          style={{ width: '100%', padding: '15px', background: loading ? 'rgba(201,168,76,0.08)' : 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.1))', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, color: '#C9A84C', fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', marginBottom: 20 }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(201,168,76,0.25)' }}
+          onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.1))' }}>
+          {loading ? '🌼 ...' : mode === 'login' ? 'Sign In' : 'Create Account'}
         </button>
 
-        <div style={{ textAlign: 'center', fontSize: 14, color: '#7a7065' }}>
+        <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 400, color: '#6a6258' }}>
           {mode === 'login' ? 'No account? ' : 'Have an account? '}
           <span onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess('') }}
-            style={{ color: '#C9A84C', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}>
-            {mode === 'login' ? 'Create one' : 'Sign in'}
+            style={{ color: '#C9A84C', cursor: 'pointer', fontWeight: 700 }}>
+            {mode === 'login' ? 'Sign up' : 'Sign in'}
           </span>
         </div>
 
-        <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', fontSize: 12, color: '#7a7065', fontFamily: 'DM Mono, monospace', letterSpacing: '0.05em' }}>
-          your space · your stars · no ads · forever free
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', fontSize: 12, fontWeight: 400, color: '#4a4540', fontFamily: 'DM Mono, monospace', letterSpacing: '0.04em' }}>
+          your space · your stars · no ads · free
         </div>
       </div>
     </div>
