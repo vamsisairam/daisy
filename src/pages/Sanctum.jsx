@@ -271,12 +271,33 @@ function LetterView({ memories, userName, letters, setLetters }) {
 }
 
 // ─── Profile View ─────────────────────────────────────────────
-function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount }) {
+function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, onUpdateName }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(profile?.name || '')
+  const [savingName, setSavingName] = useState(false)
   const themes=[...new Set(memories.map(m=>m.theme))]
   const topEmotion=Object.entries(memories.reduce((a,m)=>{a[m.emotion]=(a[m.emotion]||0)+1;return a},{})).sort((a,b)=>b[1]-a[1])[0]
+
+  // Generate a vibe tag from memories
+  const vibeTag = (() => {
+    if (memories.length < 3) return null
+    const emotionCounts = memories.reduce((a,m)=>{a[m.emotion]=(a[m.emotion]||0)+1;return a},{})
+    const topEmo = Object.entries(emotionCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]
+    const themeCounts = memories.reduce((a,m)=>{a[m.theme]=(a[m.theme]||0)+1;return a},{})
+    const topTheme = Object.entries(themeCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]
+    const tags = {
+      joy: { work: 'the driven one', relationships: 'the warm heart', general: 'the bright soul' },
+      sadness: { work: 'the quiet striver', relationships: 'the deep feeler', general: 'the gentle soul' },
+      anxiety: { work: 'the careful thinker', relationships: 'the caring one', general: 'the thoughtful mind' },
+      anger: { work: 'the fierce one', relationships: 'the passionate heart', general: 'the intense soul' },
+      love: { relationships: 'the devoted one', general: 'the warm heart', work: 'the wholehearted' },
+      neutral: { work: 'the steady one', relationships: 'the grounded soul', general: 'the quiet observer' },
+    }
+    return tags[topEmo]?.[topTheme] || tags[topEmo]?.general || 'the wandering soul'
+  })()
 
   const handleDelete = async () => {
     if (deleteInput.trim().toLowerCase() !== 'delete') return
@@ -285,12 +306,58 @@ function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount })
     setDeleting(false)
   }
 
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return
+    setSavingName(true)
+    await onUpdateName(nameInput.trim())
+    setSavingName(false)
+    setEditingName(false)
+  }
+
   return (
     <div style={{flex:1,overflowY:'auto',padding:'clamp(20px,4vw,44px)'}}>
       <div style={{maxWidth:520,margin:'0 auto'}}>
         <div style={{textAlign:'center',marginBottom:40}}>
           <div style={{width:80,height:80,borderRadius:'50%',background:'rgba(201,168,76,0.1)',border:'1px solid rgba(201,168,76,0.25)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,margin:'0 auto 16px',animation:'pulse 3s ease infinite'}}>🌼</div>
-          <div style={{fontSize:24,fontWeight:800,color:'#eae0cc',marginBottom:4}}>{profile?.name||'Wanderer'}</div>
+
+          {/* Editable name */}
+          {editingName ? (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:8}}>
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={e=>setNameInput(e.target.value)}
+                onKeyDown={e=>{ if(e.key==='Enter') handleSaveName(); if(e.key==='Escape') setEditingName(false) }}
+                style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(201,168,76,0.4)',borderRadius:8,padding:'8px 14px',color:'#eae0cc',fontSize:20,fontWeight:800,textAlign:'center',width:200,outline:'none'}}
+              />
+              <button onClick={handleSaveName} disabled={savingName}
+                style={{background:'rgba(201,168,76,0.15)',border:'1px solid rgba(201,168,76,0.4)',borderRadius:8,padding:'8px 14px',color:'#C9A84C',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                {savingName ? '…' : 'Save'}
+              </button>
+              <button onClick={()=>setEditingName(false)}
+                style={{background:'transparent',border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,padding:'8px 12px',color:'#6a6258',fontSize:13,cursor:'pointer'}}>
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={()=>{ setNameInput(profile?.name||''); setEditingName(true) }}
+              style={{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',marginBottom:8,padding:'4px 10px',borderRadius:8,transition:'background 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+              title="Click to edit name">
+              <span style={{fontSize:24,fontWeight:800,color:'#eae0cc'}}>{profile?.name||'Wanderer'}</span>
+              <span style={{fontSize:13,color:'#4a4540'}}>✎</span>
+            </div>
+          )}
+
+          {/* Vibe tag from memories */}
+          {vibeTag && (
+            <div style={{fontFamily:'DM Mono,monospace',fontSize:12,fontWeight:500,color:'#8a7f72',letterSpacing:'0.06em',marginBottom:6,fontStyle:'italic'}}>
+              {vibeTag}
+            </div>
+          )}
+
           <div style={{fontFamily:'DM Mono,monospace',fontSize:12,fontWeight:400,color:'#6a6258'}}>{session.user.email}</div>
         </div>
 
@@ -620,6 +687,11 @@ export default function Sanctum({ session }) {
     setView('chat')
   }, [])
 
+  const handleUpdateName = async (newName) => {
+    await supabase.from('profiles').update({ name: newName }).eq('id', session.user.id)
+    setProfile(prev => ({ ...prev, name: newName }))
+  }
+
   const handleDeleteAccount = async () => {
     try {
       const uid = session.user.id
@@ -674,7 +746,7 @@ export default function Sanctum({ session }) {
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
         {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat}/>}
-        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount}/>}
+        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount} onUpdateName={handleUpdateName}/>}
       </div>
     </div>
   )
