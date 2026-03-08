@@ -69,14 +69,14 @@ export default function Landing() {
         </div>
 
         {/* Big name */}
-        <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(52px, 10vw, 100px)', fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', marginBottom: 6, lineHeight: 1, textShadow: '0 0 60px rgba(201,168,76,0.3)' }}>
-          DAISY
+        <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(30px, 5.5vw, 64px)', fontWeight: 700, lineHeight: 1.18, color: '#eae0cc', marginBottom: 20, maxWidth: 700 }}>
+          Your inner world,<br />
+          <span style={{ color: '#C9A84C' }}>woven into light</span>
         </h1>
 
-        {/* Tagline */}
-        <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 'clamp(11px, 1.5vw, 13px)', fontWeight: 500, color: '#6a6258', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 36 }}>
-          an ai that remembers you
-        </div>
+        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 400, color: '#8a7f72', maxWidth: 500, lineHeight: 1.75, marginBottom: 36 }}>
+          Daisy remembers every conversation, grows with you, and maps your emotional universe as a <strong style={{ color: '#b0a090', fontWeight: 600 }}>living constellation</strong> — uniquely yours.
+        </p>
 
         {/* Animated speech bubble */}
         <div style={{ position: 'relative', marginBottom: 44, minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
