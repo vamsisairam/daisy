@@ -118,7 +118,7 @@ function LogsView({ logs, onResume }) {
       <div style={{fontSize:48,marginBottom:20,opacity:0.2}}>📓</div>
       <div style={{fontSize:18,fontWeight:700,marginBottom:10,color:'#8a7f72'}}>Your diary is empty</div>
       <div style={{fontSize:15,color:'#6a6258',maxWidth:320,lineHeight:1.7}}>
-        Conversations are saved here automatically — 2 minutes after you stop chatting. One entry per day.
+        Conversations are saved here automatically — 1 minute after you stop chatting. One entry per day.
       </div>
     </div>
   )
@@ -390,7 +390,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
       await onSaveLog(messagesRef.current)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(null), 3000)
-    }, 120000)
+    }, 60000)
     return () => clearTimeout(saveTimerRef.current)
   }, [messages.length])
 
@@ -548,14 +548,15 @@ export default function Sanctum({ session }) {
     setMessages([{role:'assistant', content: greeting}])
   },[profile?.id])
 
-  // One diary entry per calendar day — appends new messages, re-summarizes
+  // One diary entry per calendar day
+  // First save: generate summary. Re-saves: just append messages, keep existing summary
   const handleSaveLog = useCallback(async (msgs) => {
     const newUserMsgs = msgs.filter(m => m.role === 'user')
     if (newUserMsgs.length < 1) return
     const userName = profile?.name || 'friend'
     const logDate = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
     try {
-      // Fetch today's existing entry (if any)
+      // Check if today already has an entry
       const { data: existing } = await supabase
         .from('conversation_logs')
         .select('*')
@@ -564,18 +565,22 @@ export default function Sanctum({ session }) {
         .single()
 
       let allMessages = msgs
+      let summary = null
+
       if (existing) {
-        // Merge: existing messages + new ones (skip the greeting of the new session)
+        // Merge messages — deduplicate so re-saves don't double-append
         const existingMsgs = existing.messages || []
-        const newMsgs = msgs.slice(1) // skip Daisy greeting at index 0
-        // Deduplicate by content — prevent double-appending on re-save
+        const newMsgs = msgs.slice(1) // skip greeting
         const seenContents = new Set(existingMsgs.map(m => m.content))
         const uniqueNew = newMsgs.filter(m => !seenContents.has(m.content))
         allMessages = [...existingMsgs, ...uniqueNew]
+        // Keep the existing summary — don't regenerate every save
+        summary = existing.summary
+      } else {
+        // First save of the day — generate the summary once
+        summary = await callDaisy({ messages: allMessages, memories, mode: 'summarize', userName })
       }
 
-      // Re-summarize the full day's conversation
-      const summary = await callDaisy({ messages: allMessages, memories, mode: 'summarize', userName })
       const totalUserMsgs = allMessages.filter(m => m.role === 'user').length
 
       const { data } = await supabase.from('conversation_logs')
@@ -604,8 +609,14 @@ export default function Sanctum({ session }) {
 
   // Resume an old chat from Logs
   const handleResumeChat = useCallback((logMessages) => {
+    const msgs = logMessages || []
+    // Add a small resume note from Daisy at the end
+    const resumeNote = {
+      role: 'assistant',
+      content: `Picking up where we left off. 🌼`
+    }
     setChatKey(k => k + 1)
-    setMessages(logMessages || [])
+    setMessages([...msgs, resumeNote])
     setView('chat')
   }, [])
 
