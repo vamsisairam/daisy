@@ -21,6 +21,7 @@ async function callDaisy({ messages, memories, mode, userName }) {
   return text
 }
 
+// ─── Constellation ────────────────────────────────────────────
 function ConstellationView({ memories }) {
   const canvasRef = useRef(null)
   const hoveredRef = useRef(null)
@@ -73,7 +74,7 @@ function ConstellationView({ memories }) {
   return (
     <div style={{flex:1,position:'relative',overflow:'hidden'}}>
       <canvas ref={canvasRef} onMouseMove={handleMouseMove} onMouseLeave={()=>{hoveredRef.current=null;setTooltip(null)}} style={{width:'100%',height:'100%',cursor:tooltip?'pointer':'crosshair'}}/>
-      {tooltip&&<div style={{position:'absolute',left:Math.min(tooltip.x+16,window.innerWidth-240),top:tooltip.y-20,background:'rgba(5,12,24,0.96)',border:`1px solid ${tooltip.color}44`,borderRadius:6,padding:'12px 16px',maxWidth:230,pointerEvents:'none',backdropFilter:'blur(12px)',zIndex:10,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+      {tooltip&&<div style={{position:'absolute',left:Math.min(tooltip.x+16,window.innerWidth-240),top:tooltip.y-20,background:'rgba(5,12,24,0.96)',border:`1px solid ${tooltip.color}44`,borderRadius:6,padding:'12px 16px',maxWidth:230,pointerEvents:'none',backdropFilter:'blur(12px)',zIndex:10}}>
         <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:tooltip.color,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{tooltip.memory.emotion} · {tooltip.memory.theme}</div>
         <div style={{fontSize:15,color:'#c8b898',fontStyle:'italic',lineHeight:1.6}}>{tooltip.memory.content}</div>
       </div>}
@@ -88,6 +89,95 @@ function ConstellationView({ memories }) {
   )
 }
 
+// ─── Logs View ────────────────────────────────────────────────
+function LogsView({ logs, session }) {
+  const [expanded, setExpanded] = useState(null)
+
+  // Group logs by date
+  const grouped = logs.reduce((acc, log) => {
+    const dateKey = new Date(log.created_at).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    if (!acc[dateKey]) acc[dateKey] = []
+    acc[dateKey].push(log)
+    return acc
+  }, {})
+
+  const dateKeys = Object.keys(grouped)
+
+  if (logs.length === 0) return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:40}}>
+      <div style={{fontSize:48,marginBottom:20,opacity:0.25}}>📓</div>
+      <div style={{fontFamily:'Cinzel,serif',fontSize:18,fontWeight:700,marginBottom:10,color:'#9a8870'}}>Your diary is empty</div>
+      <div style={{fontStyle:'italic',fontSize:16,color:'#7a7065',maxWidth:300,lineHeight:1.7}}>
+        Conversations with Daisy are saved here automatically — day by day, like a diary
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{flex:1,overflowY:'auto',padding:'clamp(24px,4vw,48px)'}}>
+      <div style={{maxWidth:680,margin:'0 auto'}}>
+        <div style={{fontFamily:'Cinzel,serif',fontSize:22,fontWeight:700,color:'#C9A84C',marginBottom:6}}>Your Diary</div>
+        <div style={{color:'#7a7065',fontSize:15,fontStyle:'italic',marginBottom:40}}>Every conversation, saved. Your story, day by day.</div>
+
+        {dateKeys.map((dateKey, di) => (
+          <div key={dateKey} style={{marginBottom:40}}>
+            {/* Date header */}
+            <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
+              <div style={{height:1,flex:1,background:'rgba(255,255,255,0.06)'}}/>
+              <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#C9A84C',letterSpacing:'0.12em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{dateKey}</div>
+              <div style={{height:1,flex:1,background:'rgba(255,255,255,0.06)'}}/>
+            </div>
+
+            {grouped[dateKey].map((log, li) => {
+              const isOpen = expanded === log.id
+              const time = new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+              return (
+                <div key={log.id} style={{marginBottom:14,background:'rgba(255,255,255,0.03)',border:`1px solid ${isOpen?'rgba(201,168,76,0.2)':'rgba(255,255,255,0.07)'}`,borderRadius:8,overflow:'hidden',transition:'border-color 0.2s'}}>
+                  {/* Summary row */}
+                  <div
+                    onClick={() => setExpanded(isOpen ? null : log.id)}
+                    style={{padding:'18px 22px',cursor:'pointer',display:'flex',alignItems:'flex-start',gap:14}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(201,168,76,0.03)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                  >
+                    <div style={{flexShrink:0,marginTop:3}}>
+                      <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7a7065',letterSpacing:'0.08em'}}>{time}</div>
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:16,color:'#c8b898',fontStyle:'italic',lineHeight:1.7,marginBottom:6}}>
+                        {log.summary || <span style={{color:'#5a5045'}}>No summary</span>}
+                      </div>
+                      <div style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#7a7065'}}>
+                        {log.message_count} message{log.message_count!==1?'s':''} · tap to {isOpen?'collapse':'read full conversation'}
+                      </div>
+                    </div>
+                    <div style={{color:'#C9A84C',fontSize:16,flexShrink:0,transition:'transform 0.2s',transform:isOpen?'rotate(180deg)':'rotate(0deg)'}}>▾</div>
+                  </div>
+
+                  {/* Full conversation */}
+                  {isOpen && (
+                    <div style={{borderTop:'1px solid rgba(255,255,255,0.06)',padding:'20px 22px',display:'flex',flexDirection:'column',gap:14}}>
+                      {log.messages?.map((m, mi) => (
+                        <div key={mi} style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start'}}>
+                          {m.role==='assistant'&&<div style={{width:28,height:28,borderRadius:'50%',background:'rgba(201,168,76,0.12)',border:'1px solid #C9A84C44',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,marginRight:10,flexShrink:0,marginTop:2}}>🌼</div>}
+                          <div style={{maxWidth:'75%',padding:'10px 16px',borderRadius:m.role==='user'?'14px 14px 3px 14px':'14px 14px 14px 3px',background:m.role==='user'?'rgba(201,168,76,0.07)':'rgba(255,255,255,0.04)',border:`1px solid ${m.role==='user'?'#C9A84C1a':'rgba(255,255,255,0.06)'}`,fontSize:15,lineHeight:1.7,color:'#c4b49a',fontStyle:m.role==='assistant'?'italic':'normal',fontWeight:m.role==='user'?600:400}}>
+                            {m.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Letter View ──────────────────────────────────────────────
 function LetterView({ memories, userName, letters, setLetters }) {
   const [generating, setGenerating] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -125,17 +215,13 @@ function LetterView({ memories, userName, letters, setLetters }) {
       <div style={{maxWidth:680,margin:'0 auto'}}>
         <div style={{fontFamily:'Cinzel,serif',fontSize:22,fontWeight:700,color:'#C9A84C',marginBottom:10}}>Letters from Daisy</div>
         <div style={{color:'#7a7065',fontSize:16,fontStyle:'italic',marginBottom:10,lineHeight:1.7}}>
-          {memories.length<3
-            ? <><strong style={{color:'#a89880',fontStyle:'normal'}}>{3-memories.length} more conversation{3-memories.length!==1?'s':''}</strong> needed to unlock your first letter</>
-            : 'Daisy will write you a personal letter based on <strong>everything she remembers</strong> about you'}
+          {memories.length<3 ? <><strong style={{color:'#a89880',fontStyle:'normal'}}>{3-memories.length} more conversation{3-memories.length!==1?'s':''}</strong> needed to unlock your first letter</> : 'Daisy will write you a personal letter based on everything she remembers about you'}
         </div>
         {error&&<div style={{color:'#e87676',fontSize:14,fontWeight:600,fontStyle:'italic',marginBottom:18}}>{error}</div>}
-
         <button onClick={generateLetter} disabled={generating||memories.length<3}
           style={{padding:'13px 32px',background:'transparent',border:`1px solid ${memories.length>=3?'#C9A84C88':'rgba(255,255,255,0.1)'}`,borderRadius:4,color:memories.length>=3?'#C9A84C':'#7a7065',fontFamily:'Cinzel,serif',fontSize:13,fontWeight:700,letterSpacing:'0.15em',textTransform:'uppercase',cursor:memories.length>=3&&!generating?'pointer':'not-allowed',transition:'all 0.3s',marginBottom:44}}>
           {generating?'🌼 Writing your letter...':'🌼 Write Me a Letter'}
         </button>
-
         <div style={{display:'flex',flexDirection:'column',gap:14}}>
           {letters.map(l=>(
             <div key={l.id} onClick={()=>setSelected(l)}
@@ -152,6 +238,7 @@ function LetterView({ memories, userName, letters, setLetters }) {
   )
 }
 
+// ─── Profile View ─────────────────────────────────────────────
 function ProfileView({ session, profile, memories, onSignOut }) {
   const themes=[...new Set(memories.map(m=>m.theme))]
   const topEmotion=Object.entries(memories.reduce((a,m)=>{a[m.emotion]=(a[m.emotion]||0)+1;return a},{})).sort((a,b)=>b[1]-a[1])[0]
@@ -163,7 +250,6 @@ function ProfileView({ session, profile, memories, onSignOut }) {
           <div style={{fontFamily:'Cinzel,serif',fontSize:24,fontWeight:700,color:'#e8dcc8',marginBottom:6}}>{profile?.name||'Wanderer'}</div>
           <div style={{fontFamily:'DM Mono,monospace',fontSize:12,color:'#7a7065',letterSpacing:'0.08em'}}>{session.user.email}</div>
         </div>
-
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:36}}>
           {[
             {label:'Memories Woven',value:memories.length,icon:'✦'},
@@ -178,12 +264,10 @@ function ProfileView({ session, profile, memories, onSignOut }) {
             </div>
           ))}
         </div>
-
         {themes.length>0&&<div style={{marginBottom:36}}>
           <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#7a7065',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:14}}>Your Themes</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:9}}>{themes.map(t=><span key={t} style={{padding:'6px 16px',background:'rgba(201,168,76,0.06)',border:'1px solid #C9A84C33',borderRadius:20,fontSize:13,fontWeight:600,color:'#C9A84C',fontFamily:'DM Mono,monospace'}}>{t}</span>)}</div>
         </div>}
-
         <button onClick={onSignOut} style={{width:'100%',padding:14,background:'transparent',border:'1px solid rgba(255,255,255,0.08)',borderRadius:4,color:'#7a7065',fontFamily:'Cinzel,serif',fontSize:13,fontWeight:600,letterSpacing:'0.15em',textTransform:'uppercase',cursor:'pointer',transition:'all 0.2s'}}
           onMouseEnter={e=>{e.target.style.borderColor='rgba(232,118,118,0.3)';e.target.style.color='#e87676'}}
           onMouseLeave={e=>{e.target.style.borderColor='rgba(255,255,255,0.08)';e.target.style.color='#7a7065'}}>
@@ -194,14 +278,27 @@ function ProfileView({ session, profile, memories, onSignOut }) {
   )
 }
 
-function ChatView({ messages, setMessages, memories, setMemories, profile, session }) {
+// ─── Chat View ────────────────────────────────────────────────
+function ChatView({ messages, setMessages, memories, setMemories, profile, session, onSaveLog }) {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const userName = profile?.name || 'friend'
+  const saveTimerRef = useRef(null)
 
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:'smooth'})},[messages,thinking])
+
+  // Auto-save conversation as log after 60s of inactivity (if ≥ 2 user messages)
+  useEffect(() => {
+    const userMsgs = messages.filter(m => m.role === 'user')
+    if (userMsgs.length < 2) return
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      onSaveLog(messages)
+    }, 60000)
+    return () => clearTimeout(saveTimerRef.current)
+  }, [messages])
 
   const extractMemories = useCallback(async(msgs)=>{
     if(msgs.filter(m=>m.role==='user').length<2) return
@@ -251,7 +348,6 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
         </div>}
         <div ref={bottomRef}/>
       </div>
-
       <div style={{padding:'14px clamp(12px,3vw,24px)',borderTop:'1px solid rgba(255,255,255,0.06)',display:'flex',gap:12,alignItems:'flex-end',background:'rgba(0,0,0,0.18)'}}>
         <textarea ref={inputRef} rows={1} value={input}
           placeholder={`Talk to Daisy, ${userName}…`}
@@ -270,10 +366,12 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   )
 }
 
+// ─── Main Sanctum ─────────────────────────────────────────────
 const NAV=[
   {id:'chat',icon:'🌼',label:'Converse'},
   {id:'constellation',icon:'✦',label:'Constellation'},
   {id:'letters',icon:'✉',label:'Letters'},
+  {id:'logs',icon:'📓',label:'Logs'},
   {id:'profile',icon:'◉',label:'Profile'},
 ]
 
@@ -283,6 +381,7 @@ export default function Sanctum({ session }) {
   const[memories,setMemories]=useState([])
   const[messages,setMessages]=useState([])
   const[letters,setLetters]=useState([])
+  const[logs,setLogs]=useState([])
   const nav=useNavigate()
 
   useEffect(()=>{
@@ -290,6 +389,9 @@ export default function Sanctum({ session }) {
       .then(({data})=>{if(data) setProfile(data); else supabase.from('profiles').insert({id:session.user.id,name:'Wanderer'})})
     supabase.from('memories').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
       .then(({data})=>{if(data) setMemories(data)})
+    // Load logs
+    supabase.from('conversation_logs').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
+      .then(({data})=>{if(data) setLogs(data)})
     try{const s=localStorage.getItem('daisy_letters');if(s) setLetters(JSON.parse(s))}catch{}
   },[session.user.id])
 
@@ -301,11 +403,41 @@ export default function Sanctum({ session }) {
     setMessages([{role:'assistant',content:`${greeting}, ${profile.name||'friend'}.${memNote} What's on your mind?`}])
   },[profile?.id])
 
+  // Save conversation as a log entry
+  const handleSaveLog = useCallback(async (msgs) => {
+    const userMessages = msgs.filter(m => m.role === 'user')
+    if (userMessages.length < 2) return
+
+    // Check if we already saved a log with the same first message today
+    const today = new Date().toDateString()
+    const alreadySaved = logs.some(l => {
+      const logDay = new Date(l.created_at).toDateString()
+      return logDay === today && l.messages?.[0]?.content === msgs[0]?.content
+    })
+    if (alreadySaved) return
+
+    try {
+      // Generate summary
+      const summary = await callDaisy({ messages: msgs, memories, mode: 'summarize', userName: profile?.name || 'friend' })
+
+      const { data } = await supabase.from('conversation_logs').insert({
+        user_id: session.user.id,
+        messages: msgs,
+        summary,
+        message_count: userMessages.length,
+      }).select()
+
+      if (data) setLogs(prev => [data[0], ...prev])
+    } catch(e) {
+      console.log('Log save skipped:', e.message)
+    }
+  }, [logs, memories, profile, session.user.id])
+
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
   return (
     <div style={{height:'100vh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f35 0%, #050c18 60%)'}}>
-      {/* Sidebar — desktop left, mobile bottom */}
+      {/* Sidebar */}
       <div className="sidebar" style={{width:68,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:24,paddingBottom:24,borderRight:'1px solid rgba(255,255,255,0.06)',gap:6,background:'rgba(0,0,0,0.22)',flexShrink:0}}>
         <div className="logo-icon" style={{fontSize:20,marginBottom:18}}>🌼</div>
         {NAV.map(n=>(
@@ -321,20 +453,18 @@ export default function Sanctum({ session }) {
 
       {/* Main */}
       <div className="main-area" style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        {/* Topbar */}
         <div style={{height:56,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 clamp(16px,3vw,28px)',borderBottom:'1px solid rgba(255,255,255,0.06)',background:'rgba(0,0,0,0.12)',flexShrink:0}}>
-          <div style={{fontFamily:'Cinzel,serif',fontSize:14,fontWeight:700,color:'#C9A84C',letterSpacing:'0.12em'}}>
-            {NAV.find(n=>n.id===view)?.label||'Daisy'}
-          </div>
+          <div style={{fontFamily:'Cinzel,serif',fontSize:14,fontWeight:700,color:'#C9A84C',letterSpacing:'0.12em'}}>{NAV.find(n=>n.id===view)?.label||'Daisy'}</div>
           <div style={{display:'flex',alignItems:'center',gap:16}}>
             {memories.length>0&&<div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#7a7065',letterSpacing:'0.06em'}}>{memories.length} stars</div>}
             <div style={{fontFamily:'Cinzel,serif',fontSize:13,fontWeight:600,color:'#9a8860'}}>{profile?.name||session.user.email?.split('@')[0]}</div>
           </div>
         </div>
 
-        {view==='chat'&&<ChatView messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session}/>}
+        {view==='chat'&&<ChatView messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog}/>}
         {view==='constellation'&&<ConstellationView memories={memories}/>}
         {view==='letters'&&<LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
+        {view==='logs'&&<LogsView logs={logs} session={session}/>}
         {view==='profile'&&<ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut}/>}
       </div>
     </div>

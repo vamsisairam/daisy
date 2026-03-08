@@ -94,6 +94,25 @@ create policy "Users can insert own profile" on profiles for insert with check (
 create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
 create policy "Users can view own memories" on memories for select using (auth.uid() = user_id);
 create policy "Users can insert own memories" on memories for insert with check (auth.uid() = user_id);
+-- Conversation logs table
+create table if not exists conversation_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade not null,
+  messages jsonb not null default '[]',
+  summary text,
+  message_count int default 0,
+  created_at timestamptz default now()
+);
+
+alter table conversation_logs enable row level security;
+
+create policy "Users can view own logs"
+  on conversation_logs for select using (auth.uid() = user_id);
+create policy "Users can insert own logs"
+  on conversation_logs for insert with check (auth.uid() = user_id);
+create policy "Users can delete own logs"
+  on conversation_logs for delete using (auth.uid() = user_id);
+
 create policy "Users can delete own memories" on memories for delete using (auth.uid() = user_id);
 ```
 

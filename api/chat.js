@@ -47,13 +47,25 @@ ${memCtx}`,
     extract: `Analyze this conversation and extract 1-3 meaningful insights about the person's inner world. Return ONLY valid JSON — no markdown, no extra text:
 [{"content":"one clear sentence describing an insight about them","emotion":"happy|sad|anxious|grateful|excited|neutral|reflective|hopeful|melancholy","theme":"family|work|love|health|growth|loss|friendship|creativity|purpose|identity|general"}]`,
 
-    letter: `Write a beautiful, personal letter to ${userName} based on everything you know about their inner world. Write as Daisy — part caring friend, part wise therapist who truly sees them. Reference specific patterns and memories. Gently name something they might not have fully seen about themselves. Be warm, honest, and real — not overly poetic. End with genuine encouragement. Sign off as "Daisy 🌼". 4-5 paragraphs.${memCtx}`
+    letter: `Write a beautiful, personal letter to ${userName} based on everything you know about their inner world. Write as Daisy — part caring friend, part wise therapist who truly sees them. Reference specific patterns and memories. Gently name something they might not have fully seen about themselves. Be warm, honest, and real — not overly poetic. End with genuine encouragement. Sign off as "Daisy 🌼". 4-5 paragraphs.${memCtx}`,
+
+    summarize: `You are summarizing a conversation between ${userName} and Daisy (an AI companion). 
+Write a warm, diary-style summary in 2-3 sentences — written as if ${userName} is narrating their own diary entry.
+Use first person ("I talked about...", "I was feeling...", "Daisy helped me see...").
+Capture the emotional tone and the key thing(s) discussed. Be human and real, not clinical.
+Return ONLY the summary text — no title, no date, no extra formatting.`,
   };
 
   try {
-    const anthropicMessages = mode === 'extract'
-      ? [{ role: 'user', content: `Extract insights from this conversation: ${JSON.stringify(messages)}` }]
-      : messages;
+    let anthropicMessages;
+    if (mode === 'extract') {
+      anthropicMessages = [{ role: 'user', content: `Extract insights from this conversation: ${JSON.stringify(messages)}` }];
+    } else if (mode === 'summarize') {
+      const convo = messages.map(m => `${m.role === 'user' ? userName : 'Daisy'}: ${m.content}`).join('\n');
+      anthropicMessages = [{ role: 'user', content: `Summarize this conversation:\n\n${convo}` }];
+    } else {
+      anthropicMessages = messages;
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -64,7 +76,7 @@ ${memCtx}`,
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: mode === 'letter' ? 900 : mode === 'extract' ? 400 : 600,
+        max_tokens: mode === 'letter' ? 900 : mode === 'extract' ? 400 : mode === 'summarize' ? 200 : 600,
         system: systems[mode] || systems.chat,
         messages: anthropicMessages,
       }),
