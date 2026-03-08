@@ -18,18 +18,9 @@ export default function Auth() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        // Pre-check: attempt sign-in with a dummy password to see if email exists
-        // Supabase returns "Invalid login credentials" only if the email IS registered
-        // If email doesn't exist it returns "Email not confirmed" or similar
-        const { error: checkErr } = await supabase.auth.signInWithPassword({ email, password: '___daisy_check___' })
-        if (checkErr && checkErr.message === 'Invalid login credentials') {
-          // Email exists — wrong password means account is there
-          throw new Error('This email is already registered. Please sign in instead.')
-        }
-
         const { data, error: err } = await supabase.auth.signUp({ email, password })
         if (err) throw err
-        // Second safety net: identities empty = Supabase already knew this email
+        // identities is empty when email already exists in Supabase
         if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
           throw new Error('This email is already registered. Please sign in instead.')
         }
