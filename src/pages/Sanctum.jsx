@@ -635,7 +635,6 @@ export default function Sanctum({ session }) {
       alert('Something went wrong. Please try again.')
     }
   }
-  }
 
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
