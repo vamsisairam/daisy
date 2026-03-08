@@ -611,38 +611,19 @@ export default function Sanctum({ session }) {
 
   const handleDeleteAccount = async () => {
     try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      if (!currentSession) throw new Error('Not authenticated')
-
-      const res = await fetch('/api/delete-account', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
-        body: JSON.stringify({ user_id: session.user.id }),
-      })
-
-      const data = await res.json()
-
-      // If server-side auth deletion failed, don't proceed —
-      // partial delete leaves the account stuck (can't login, can't re-register)
-      if (!res.ok) {
-        throw new Error(
-          data.error === 'Delete failed' || !data.error
-            ? 'Account deletion is not fully set up yet. Please contact support.'
-            : data.error
-        )
-      }
-
+      const uid = session.user.id
+      // Delete all data — account stays so they can sign back in or re-use the email
+      await supabase.from('conversation_logs').delete().eq('user_id', uid)
+      await supabase.from('memories').delete().eq('user_id', uid)
+      await supabase.from('profiles').delete().eq('id', uid)
       try { localStorage.removeItem('daisy_letters') } catch {}
       await supabase.auth.signOut()
       nav('/')
     } catch(e) {
-      console.error('Delete account error:', e)
-      // Show a clear, user-friendly message
-      alert(e.message || 'Something went wrong. Please try again.')
+      console.error('Delete error:', e)
+      alert('Something went wrong. Please try again.')
     }
+  }
   }
 
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}

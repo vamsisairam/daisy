@@ -26,7 +26,7 @@ export default function Auth() {
         }
         if (data.user) {
           await supabase.from('profiles').upsert({ id: data.user.id, name: name || 'Wanderer' })
-          setSuccess('Account created! You can sign in now.')
+          setSuccess('✓ Account created! You can sign in now.')
         }
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password })
@@ -34,6 +34,9 @@ export default function Auth() {
           // Make Supabase's generic errors friendlier
           if (err.message.includes('Invalid login credentials')) {
             throw new Error('Wrong email or password. Please try again.')
+          }
+          if (err.message.includes('Email not confirmed')) {
+            throw new Error('Please confirm your email first, or just try signing in — it usually works anyway.')
           }
           throw err
         }
@@ -83,7 +86,14 @@ export default function Auth() {
           onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
 
         {error && <div style={{ background: 'rgba(232,118,118,0.1)', border: '1px solid rgba(232,118,118,0.25)', borderRadius: 8, padding: '10px 14px', color: '#e87676', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>{error}</div>}
-        {success && <div style={{ background: 'rgba(82,199,122,0.1)', border: '1px solid rgba(82,199,122,0.25)', borderRadius: 8, padding: '10px 14px', color: '#52c77a', fontSize: 14, fontWeight: 500, marginBottom: 16 }}>{success}</div>}
+        {success && (
+          <div style={{ background: 'rgba(82,199,122,0.08)', border: '1px solid rgba(82,199,122,0.3)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, animation: 'fadeUp 0.3s ease both' }}>
+            <div style={{ color: '#52c77a', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{success}</div>
+            <div style={{ color: '#6a9a70', fontSize: 13, fontWeight: 400, lineHeight: 1.5 }}>
+              If you got a confirmation email, you can ignore it — just sign in directly below.
+            </div>
+          </div>
+        )}
 
         <button onClick={handle} disabled={loading}
           style={{ width: '100%', padding: '15px', background: loading ? 'rgba(201,168,76,0.08)' : 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.1))', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, color: '#C9A84C', fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', marginBottom: 20 }}

@@ -49,6 +49,8 @@ export default function App() {
             <Sanctum session={session} />
           </ProtectedRoute>
         } />
+        {/* Handles the email confirmation redirect from Supabase */}
+        <Route path="/auth/callback" element={session ? <Navigate to="/sanctum" /> : <Navigate to="/auth" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
