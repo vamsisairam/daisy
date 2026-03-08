@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 
 const STARS = Array.from({ length: 90 }, () => ({
   x: Math.random() * 100, y: Math.random() * 100,
@@ -8,31 +7,8 @@ const STARS = Array.from({ length: 90 }, () => ({
   opacity: Math.random() * 0.5 + 0.15,
 }))
 
-// Daisy's rotating self-descriptions
-const DAISY_LINES = [
-  "I remember what you told me last Tuesday.",
-  "I noticed you've been carrying a lot lately.",
-  "I wrote you a letter. Want to read it?",
-  "You have 12 new stars in your constellation.",
-  "I've been thinking about what you shared.",
-  "I won't forget. That's kind of my thing.",
-]
-
 export default function Landing() {
   const nav = useNavigate()
-  const [lineIdx, setLineIdx] = useState(0)
-  const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setLineIdx(i => (i + 1) % DAISY_LINES.length)
-        setVisible(true)
-      }, 400)
-    }, 3200)
-    return () => clearInterval(interval)
-  }, [])
 
   return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 25% 15%, #0e2040 0%, #060d1a 60%)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -78,20 +54,7 @@ export default function Landing() {
           Daisy remembers every conversation, grows with you, and maps your emotional universe as a <strong style={{ color: '#b0a090', fontWeight: 600 }}>living constellation</strong> — uniquely yours.
         </p>
 
-        {/* Animated speech bubble */}
-        <div style={{ position: 'relative', marginBottom: 44, minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)',
-            borderRadius: 14, padding: '14px 24px', maxWidth: 420,
-            fontSize: 'clamp(14px, 2vw, 16px)', fontWeight: 400, color: '#b0a090',
-            lineHeight: 1.6, fontStyle: 'italic',
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(4px)',
-            transition: 'opacity 0.35s ease, transform 0.35s ease',
-          }}>
-            " {DAISY_LINES[lineIdx]} "
-          </div>
-        </div>
+
 
         {/* CTA */}
         <button onClick={() => nav('/auth')}
