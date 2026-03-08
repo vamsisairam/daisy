@@ -271,9 +271,20 @@ function LetterView({ memories, userName, letters, setLetters }) {
 }
 
 // ─── Profile View ─────────────────────────────────────────────
-function ProfileView({ session, profile, memories, onSignOut }) {
+function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const themes=[...new Set(memories.map(m=>m.theme))]
   const topEmotion=Object.entries(memories.reduce((a,m)=>{a[m.emotion]=(a[m.emotion]||0)+1;return a},{})).sort((a,b)=>b[1]-a[1])[0]
+
+  const handleDelete = async () => {
+    if (deleteInput.trim().toLowerCase() !== 'delete') return
+    setDeleting(true)
+    await onDeleteAccount()
+    setDeleting(false)
+  }
+
   return (
     <div style={{flex:1,overflowY:'auto',padding:'clamp(20px,4vw,44px)'}}>
       <div style={{maxWidth:520,margin:'0 auto'}}>
@@ -306,11 +317,48 @@ function ProfileView({ session, profile, memories, onSignOut }) {
         </div>}
 
         <button onClick={onSignOut}
-          style={{width:'100%',padding:14,background:'transparent',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,color:'#6a6258',fontSize:14,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}
+          style={{width:'100%',padding:'15px',background:'transparent',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,color:'#6a6258',fontFamily:'Cinzel,serif',fontSize:16,fontWeight:600,letterSpacing:'0.08em',cursor:'pointer',transition:'all 0.2s',marginBottom:12}}
           onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(232,118,118,0.3)';e.currentTarget.style.color='#e87676'}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';e.currentTarget.style.color='#6a6258'}}>
           Leave Sanctum
         </button>
+
+        {/* Delete Account */}
+        {!showDeleteConfirm ? (
+          <button onClick={()=>setShowDeleteConfirm(true)}
+            style={{width:'100%',padding:'11px',background:'transparent',border:'1px solid rgba(255,255,255,0.05)',borderRadius:10,color:'#4a4540',fontSize:13,fontWeight:500,cursor:'pointer',transition:'all 0.2s',letterSpacing:'0.03em'}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(232,118,118,0.2)';e.currentTarget.style.color='#9a5555'}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.05)';e.currentTarget.style.color='#4a4540'}}>
+            Delete Account
+          </button>
+        ) : (
+          <div style={{background:'rgba(232,118,118,0.06)',border:'1px solid rgba(232,118,118,0.2)',borderRadius:12,padding:'20px'}}>
+            <div style={{fontSize:15,fontWeight:700,color:'#e87676',marginBottom:6}}>Delete everything?</div>
+            <div style={{fontSize:13,fontWeight:400,color:'#8a7070',marginBottom:16,lineHeight:1.65}}>
+              This will permanently delete your account, all memories, conversations, and diary entries. This cannot be undone.
+            </div>
+            <div style={{fontSize:13,fontWeight:500,color:'#8a7070',marginBottom:8}}>Type <strong style={{color:'#e87676',fontWeight:700}}>delete</strong> to confirm</div>
+            <input
+              value={deleteInput}
+              onChange={e=>setDeleteInput(e.target.value)}
+              placeholder="delete"
+              style={{width:'100%',background:'rgba(255,255,255,0.05)',border:`1px solid ${deleteInput.toLowerCase()==='delete'?'rgba(232,118,118,0.5)':'rgba(255,255,255,0.1)'}`,borderRadius:8,padding:'10px 14px',color:'#eae0cc',fontSize:14,fontWeight:400,marginBottom:12,transition:'border-color 0.2s'}}
+            />
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>{setShowDeleteConfirm(false);setDeleteInput('')}}
+                style={{flex:1,padding:'10px',background:'transparent',border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#6a6258',fontSize:13,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='#eae0cc'}
+                onMouseLeave={e=>e.currentTarget.style.color='#6a6258'}>
+                Cancel
+              </button>
+              <button onClick={handleDelete}
+                disabled={deleteInput.trim().toLowerCase()!=='delete'||deleting}
+                style={{flex:1,padding:'10px',background:deleteInput.toLowerCase()==='delete'?'rgba(232,118,118,0.18)':'rgba(255,255,255,0.04)',border:`1px solid ${deleteInput.toLowerCase()==='delete'?'rgba(232,118,118,0.5)':'rgba(255,255,255,0.08)'}`,borderRadius:8,color:deleteInput.toLowerCase()==='delete'?'#e87676':'#4a4540',fontSize:13,fontWeight:700,cursor:deleteInput.toLowerCase()==='delete'?'pointer':'not-allowed',transition:'all 0.2s'}}>
+                {deleting ? 'Deleting…' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -486,8 +534,18 @@ export default function Sanctum({ session }) {
     if(!profile) return
     const h=new Date().getHours()
     const g=h<12?'Good morning':h<17?'Good afternoon':'Good evening'
-    const note=memories.length>0?` I've been holding ${memories.length} of your stars.`:' Your constellation is waiting to be born.'
-    setMessages([{role:'assistant',content:`${g}, ${profile.name||'friend'}.${note} What's on your mind?`}])
+    const name = profile.name || 'friend'
+    let greeting
+    if(memories.length === 0) {
+      // First time — introduce name naturally through the space, not "Hi I'm Daisy"
+      greeting = `${g}, ${name}. I'm Daisy — this is your space. No rush, no agenda. What's going on with you?`
+    } else {
+      const note = memories.length < 5
+        ? ` I've been thinking about what you shared last time.`
+        : ` I've been holding ${memories.length} of your stars.`
+      greeting = `${g}, ${name}.${note} What's on your mind today?`
+    }
+    setMessages([{role:'assistant', content: greeting}])
   },[profile?.id])
 
   // One diary entry per calendar day — appends new messages, re-summarizes
@@ -551,6 +609,25 @@ export default function Sanctum({ session }) {
     setView('chat')
   }, [])
 
+  const handleDeleteAccount = async () => {
+    try {
+      const uid = session.user.id
+      // Delete all user data in order (RLS cascades most, but be explicit)
+      await supabase.from('conversation_logs').delete().eq('user_id', uid)
+      await supabase.from('memories').delete().eq('user_id', uid)
+      await supabase.from('profiles').delete().eq('id', uid)
+      // Clear letters from localStorage
+      try { localStorage.removeItem('daisy_letters') } catch {}
+      // Sign out — Supabase auth.users row is deleted via the cascade on profiles
+      // (or the user can re-register fresh)
+      await supabase.auth.signOut()
+      nav('/')
+    } catch(e) {
+      console.error('Delete account error:', e)
+      alert('Something went wrong. Please try again.')
+    }
+  }
+
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
   return (
@@ -570,7 +647,7 @@ export default function Sanctum({ session }) {
       <div className="main-area" style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minWidth:0}}>
         {/* Topbar */}
         <div className="topbar" style={{height:54,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 clamp(14px,3vw,24px)',borderBottom:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.15)',flexShrink:0}}>
-          <div style={{fontFamily:'Cinzel,serif',fontSize:15,fontWeight:700,color:'#C9A84C',letterSpacing:'0.1em'}}>
+          <div style={{fontFamily:'Cinzel,serif',fontSize:view==='chat'?20:15,fontWeight:700,color:'#C9A84C',letterSpacing:'0.1em',transition:'font-size 0.15s'}}>
             {NAV.find(n=>n.id===view)?.label||'Daisy'}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:14}}>
@@ -589,7 +666,7 @@ export default function Sanctum({ session }) {
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
         {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat}/>}
-        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut}/>}
+        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount}/>}
       </div>
     </div>
   )
