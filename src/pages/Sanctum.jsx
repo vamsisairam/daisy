@@ -611,7 +611,6 @@ export default function Sanctum({ session }) {
 
   const handleDeleteAccount = async () => {
     try {
-      // Get the current session JWT to authenticate the server-side delete
       const { data: { session: currentSession } } = await supabase.auth.getSession()
       if (!currentSession) throw new Error('Not authenticated')
 
@@ -625,16 +624,24 @@ export default function Sanctum({ session }) {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Delete failed')
 
-      // Clear local data
+      // If server-side auth deletion failed, don't proceed —
+      // partial delete leaves the account stuck (can't login, can't re-register)
+      if (!res.ok) {
+        throw new Error(
+          data.error === 'Delete failed' || !data.error
+            ? 'Account deletion is not fully set up yet. Please contact support.'
+            : data.error
+        )
+      }
+
       try { localStorage.removeItem('daisy_letters') } catch {}
-      // Sign out locally — auth account is already gone on Supabase
       await supabase.auth.signOut()
       nav('/')
     } catch(e) {
       console.error('Delete account error:', e)
-      alert('Something went wrong: ' + e.message)
+      // Show a clear, user-friendly message
+      alert(e.message || 'Something went wrong. Please try again.')
     }
   }
 
