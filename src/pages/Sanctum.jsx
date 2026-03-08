@@ -69,7 +69,7 @@ function ConstellationView({ memories }) {
     <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:40}}>
       <div style={{fontSize:56,marginBottom:20,opacity:0.2}}>✦</div>
       <div style={{fontSize:18,fontWeight:700,marginBottom:10,color:'#8a7f72'}}>Your constellation awaits</div>
-      <div style={{fontSize:15,color:'#6a6258',maxWidth:280,lineHeight:1.7}}>Chat with Daisy — after a few conversations, your stars will appear here</div>
+      <div style={{fontSize:15,color:'#6a6258',maxWidth:280,lineHeight:1.7}}>Talk to Daisy — after a few conversations, your stars will appear here</div>
     </div>
   )
 
@@ -94,24 +94,31 @@ function ConstellationView({ memories }) {
 }
 
 // ─── Logs View ─────────────────────────────────────────────────
-function LogsView({ logs }) {
+function LogsView({ logs, onResume }) {
   const [expanded, setExpanded] = useState(null)
 
-  // Group by calendar date
-  const grouped = logs.reduce((acc, log) => {
-    const d = new Date(log.created_at)
-    const key = d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-    if (!acc[key]) acc[key] = []
-    acc[key].push(log)
-    return acc
-  }, {})
+  // Sort by date desc — each log is one day
+  const sorted = [...logs].sort((a, b) => {
+    const da = a.log_date || a.created_at
+    const db = b.log_date || b.created_at
+    return db > da ? 1 : -1
+  })
+
+  const fmtDate = (dateStr) => {
+    const d = new Date(dateStr + (dateStr.length === 10 ? 'T12:00:00' : ''))
+    const today = new Date()
+    const yesterday = new Date(); yesterday.setDate(today.getDate() - 1)
+    if (d.toDateString() === today.toDateString()) return 'Today'
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+    return d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+  }
 
   if (logs.length === 0) return (
     <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:40}}>
       <div style={{fontSize:48,marginBottom:20,opacity:0.2}}>📓</div>
       <div style={{fontSize:18,fontWeight:700,marginBottom:10,color:'#8a7f72'}}>Your diary is empty</div>
       <div style={{fontSize:15,color:'#6a6258',maxWidth:320,lineHeight:1.7}}>
-        Conversations are saved here automatically — 2 minutes after you stop chatting. Every day gets its own entry.
+        Conversations are saved here automatically — 2 minutes after you stop chatting. One entry per day.
       </div>
     </div>
   )
@@ -121,77 +128,79 @@ function LogsView({ logs }) {
       <div style={{maxWidth:700,margin:'0 auto'}}>
         <div style={{fontSize:24,fontWeight:800,color:'#C9A84C',marginBottom:4}}>Your Diary</div>
         <div style={{fontSize:15,fontWeight:400,color:'#6a6258',marginBottom:40,lineHeight:1.6}}>
-          {logs.length} saved conversation{logs.length!==1?'s':''} — saved automatically after each chat
+          {logs.length} day{logs.length !== 1 ? 's' : ''} of conversations
         </div>
 
-        {Object.keys(grouped).map((dateKey) => (
-          <div key={dateKey} style={{marginBottom:44}}>
+        {sorted.map((log) => {
+          const isOpen = expanded === log.id
+          const dateLabel = fmtDate(log.log_date || log.created_at)
+          const msgs = log.messages || []
+          const realMsgs = msgs.filter((m, i) => !(i === 0 && m.role === 'assistant')) // skip greeting
 
-            {/* Date header */}
-            <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
-              <div style={{height:1,flex:1,background:'rgba(255,255,255,0.07)'}}/>
-              <div style={{background:'rgba(201,168,76,0.08)',border:'1px solid rgba(201,168,76,0.2)',borderRadius:20,padding:'4px 14px'}}>
-                <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#C9A84C',letterSpacing:'0.08em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{dateKey}</span>
+          return (
+            <div key={log.id} style={{marginBottom:16,background:'rgba(255,255,255,0.03)',border:`1px solid ${isOpen ? 'rgba(201,168,76,0.28)' : 'rgba(255,255,255,0.07)'}`,borderRadius:14,overflow:'hidden',transition:'border-color 0.2s, box-shadow 0.2s',boxShadow:isOpen?'0 4px 28px rgba(0,0,0,0.28)':'none'}}>
+
+              {/* Date header row */}
+              <div
+                onClick={() => setExpanded(isOpen ? null : log.id)}
+                style={{padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'flex-start',gap:14,transition:'background 0.15s',WebkitTapHighlightColor:'transparent'}}
+                onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+                onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+
+                {/* Date badge */}
+                <div style={{flexShrink:0,background: dateLabel==='Today'?'rgba(201,168,76,0.12)':'rgba(255,255,255,0.05)',border:`1px solid ${dateLabel==='Today'?'rgba(201,168,76,0.3)':'rgba(255,255,255,0.09)'}`,borderRadius:10,padding:'6px 12px',minWidth:80,textAlign:'center'}}>
+                  <div style={{fontFamily:'DM Mono,monospace',fontSize:12,fontWeight:600,color:dateLabel==='Today'?'#C9A84C':'#8a7f72',whiteSpace:'nowrap'}}>{dateLabel}</div>
+                </div>
+
+                <div style={{flex:1,minWidth:0}}>
+                  {/* Diary summary */}
+                  <div style={{fontSize:15,fontWeight:400,color:'#d0c0a8',lineHeight:1.8,marginBottom:8}}>
+                    {log.summary || <span style={{color:'#4a4540'}}>No summary yet</span>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+                    <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:400,color:'#6a6258'}}>{log.message_count} message{log.message_count!==1?'s':''}</span>
+                    <span style={{color:'#3a3530',fontSize:10}}>·</span>
+                    <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:isOpen?'#C9A84C':'#6a6258',transition:'color 0.15s'}}>{isOpen ? 'collapse' : 'read'}</span>
+                  </div>
+                </div>
+
+                <div style={{color:'#C9A84C',fontSize:15,flexShrink:0,transition:'transform 0.25s ease',transform:isOpen?'rotate(180deg)':'none',opacity:0.7,marginTop:4}}>▾</div>
               </div>
-              <div style={{height:1,flex:1,background:'rgba(255,255,255,0.07)'}}/>
-            </div>
 
-            {grouped[dateKey].map((log, li) => {
-              const isOpen = expanded === log.id
-              const time = new Date(log.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
-              const sessionNum = grouped[dateKey].length > 1 ? ` · Session ${li+1}` : ''
-              return (
-                <div key={log.id} style={{marginBottom:14,background:'rgba(255,255,255,0.03)',border:`1px solid ${isOpen?'rgba(201,168,76,0.25)':'rgba(255,255,255,0.07)'}`,borderRadius:14,overflow:'hidden',transition:'border-color 0.2s',boxShadow:isOpen?'0 4px 24px rgba(0,0,0,0.25)':'none'}}>
+              {/* Expanded: full conversation + Continue button */}
+              {isOpen && (
+                <div style={{borderTop:'1px solid rgba(255,255,255,0.06)',animation:'fadeIn 0.2s ease both'}}>
 
-                  {/* Header row */}
-                  <div onClick={()=>setExpanded(isOpen?null:log.id)}
-                    style={{padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'flex-start',gap:14,transition:'background 0.15s',WebkitTapHighlightColor:'transparent'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-
-                    {/* Time badge */}
-                    <div style={{flexShrink:0,background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'6px 10px',marginTop:1}}>
-                      <div style={{fontFamily:'DM Mono,monospace',fontSize:12,fontWeight:500,color:'#8a7f72',whiteSpace:'nowrap'}}>{time}{sessionNum}</div>
-                    </div>
-
-                    <div style={{flex:1,minWidth:0}}>
-                      {/* Summary — the diary entry */}
-                      <div style={{fontSize:15,fontWeight:400,color:'#d0c0a8',lineHeight:1.75,marginBottom:10}}>
-                        {log.summary || <span style={{color:'#4a4540',fontWeight:400}}>Summary not available</span>}
-                      </div>
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
-                        <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:400,color:'#6a6258'}}>{log.message_count} message{log.message_count!==1?'s':''}</span>
-                        <span style={{color:'#3a3530',fontSize:10}}>·</span>
-                        <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:isOpen?'#C9A84C':'#6a6258',transition:'color 0.15s'}}>{isOpen?'collapse':'read conversation'}</span>
-                      </div>
-                    </div>
-
-                    <div style={{color:'#C9A84C',fontSize:16,flexShrink:0,transition:'transform 0.25s ease',transform:isOpen?'rotate(180deg)':'none',marginTop:4,opacity:0.7}}>▾</div>
+                  {/* Continue chat banner */}
+                  <div style={{padding:'12px 20px',background:'rgba(201,168,76,0.05)',borderBottom:'1px solid rgba(255,255,255,0.05)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
+                    <span style={{fontSize:13,fontWeight:500,color:'#8a7f72'}}>Want to continue this conversation?</span>
+                    <button
+                      onClick={() => onResume(log.messages || [])}
+                      style={{background:'rgba(201,168,76,0.15)',border:'1px solid rgba(201,168,76,0.4)',borderRadius:8,padding:'7px 18px',color:'#C9A84C',fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.15s',WebkitTapHighlightColor:'transparent',letterSpacing:'0.03em',flexShrink:0}}
+                      onMouseEnter={e => e.currentTarget.style.background='rgba(201,168,76,0.25)'}
+                      onMouseLeave={e => e.currentTarget.style.background='rgba(201,168,76,0.15)'}>
+                      Continue Chat →
+                    </button>
                   </div>
 
-                  {/* Full conversation thread */}
-                  {isOpen&&(
-                    <div style={{borderTop:'1px solid rgba(255,255,255,0.06)',padding:'20px 20px',display:'flex',flexDirection:'column',gap:10,background:'rgba(0,0,0,0.1)',animation:'fadeIn 0.2s ease both'}}>
-                      {(log.messages||[]).map((m,mi)=>{
-                        if(mi===0&&m.role==='assistant') return null // skip greeting
-                        return (
-                          <div key={mi} style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start',alignItems:'flex-end',gap:8}}>
-                            {m.role==='assistant'&&(
-                              <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(201,168,76,0.12)',border:'1px solid rgba(201,168,76,0.22)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flexShrink:0}}>🌼</div>
-                            )}
-                            <div style={{maxWidth:'80%',padding:'10px 14px',borderRadius:m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',background:m.role==='user'?'rgba(201,168,76,0.1)':'rgba(255,255,255,0.05)',border:`1px solid ${m.role==='user'?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.07)'}`,fontSize:14,fontWeight:m.role==='user'?500:400,lineHeight:1.65,color:m.role==='user'?'#e0d0b0':'#b0a090',wordBreak:'break-word'}}>
-                              {m.content}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                  {/* Messages */}
+                  <div style={{padding:'18px 20px',display:'flex',flexDirection:'column',gap:10,background:'rgba(0,0,0,0.1)'}}>
+                    {realMsgs.map((m, mi) => (
+                      <div key={mi} style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start',alignItems:'flex-end',gap:8}}>
+                        {m.role==='assistant' && (
+                          <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(201,168,76,0.12)',border:'1px solid rgba(201,168,76,0.22)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flexShrink:0}}>🌼</div>
+                        )}
+                        <div style={{maxWidth:'80%',padding:'10px 14px',borderRadius:m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',background:m.role==='user'?'rgba(201,168,76,0.1)':'rgba(255,255,255,0.05)',border:`1px solid ${m.role==='user'?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.07)'}`,fontSize:14,fontWeight:m.role==='user'?500:400,lineHeight:1.65,color:m.role==='user'?'#e0d0b0':'#b0a090',wordBreak:'break-word'}}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        ))}
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -300,7 +309,7 @@ function ProfileView({ session, profile, memories, onSignOut }) {
           style={{width:'100%',padding:14,background:'transparent',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,color:'#6a6258',fontSize:14,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}
           onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(232,118,118,0.3)';e.currentTarget.style.color='#e87676'}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';e.currentTarget.style.color='#6a6258'}}>
-          Sign Out
+          Leave Sanctum
         </button>
       </div>
     </div>
@@ -320,9 +329,6 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   const saveTimerRef = useRef(null)
   // Always holds latest messages — fixes stale closure bug in timer
   const messagesRef = useRef(messages)
-  // Unique ID per chat session so upsert works correctly
-  const chatSessionIdRef = useRef(genId())
-
   useEffect(() => { messagesRef.current = messages }, [messages])
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:'smooth'})},[messages,thinking])
 
@@ -333,7 +339,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       setSaveStatus('saving')
-      await onSaveLog(messagesRef.current, chatSessionIdRef.current)
+      await onSaveLog(messagesRef.current)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(null), 3000)
     }, 120000)
@@ -417,7 +423,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
             style={{background:'none',border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,padding:'5px 14px',color:'#6a6258',fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:5,transition:'all 0.15s',WebkitTapHighlightColor:'transparent',letterSpacing:'0.03em'}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(201,168,76,0.3)';e.currentTarget.style.color='#C9A84C'}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='#6a6258'}}>
-            + New Chat
+            + New Conversation
           </button>
         </div>
         <div style={{display:'flex',gap:10,alignItems:'flex-end'}}>
@@ -449,7 +455,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
 
 // ─── Main Sanctum ─────────────────────────────────────────────
 const NAV = [
-  {id:'chat',      icon:'🌼', label:'Chat'},
+  {id:'chat',      icon:'🌼', label:'Converse'},
   {id:'constellation',icon:'✦',label:'Stars'},
   {id:'letters',   icon:'✉', label:'Letters'},
   {id:'logs',      icon:'📓', label:'Logs'},
@@ -484,41 +490,66 @@ export default function Sanctum({ session }) {
     setMessages([{role:'assistant',content:`${g}, ${profile.name||'friend'}.${note} What's on your mind?`}])
   },[profile?.id])
 
-  // Save or update a chat session in the diary
-  // Uses session_id for upsert so re-saves update the existing entry
-  const handleSaveLog = useCallback(async (msgs, sessionId) => {
-    const userMsgs = msgs.filter(m => m.role === 'user')
-    if (userMsgs.length < 1) return
+  // One diary entry per calendar day — appends new messages, re-summarizes
+  const handleSaveLog = useCallback(async (msgs) => {
+    const newUserMsgs = msgs.filter(m => m.role === 'user')
+    if (newUserMsgs.length < 1) return
+    const userName = profile?.name || 'friend'
+    const logDate = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
     try {
-      const summary = await callDaisy({ messages: msgs, memories, mode: 'summarize', userName: profile?.name || 'friend' })
-      // Upsert by session_id — updates if already saved, inserts if new
+      // Fetch today's existing entry (if any)
+      const { data: existing } = await supabase
+        .from('conversation_logs')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('log_date', logDate)
+        .single()
+
+      let allMessages = msgs
+      if (existing) {
+        // Merge: existing messages + new ones (skip the greeting of the new session)
+        const existingMsgs = existing.messages || []
+        const newMsgs = msgs.slice(1) // skip Daisy greeting at index 0
+        // Deduplicate by content — prevent double-appending on re-save
+        const seenContents = new Set(existingMsgs.map(m => m.content))
+        const uniqueNew = newMsgs.filter(m => !seenContents.has(m.content))
+        allMessages = [...existingMsgs, ...uniqueNew]
+      }
+
+      // Re-summarize the full day's conversation
+      const summary = await callDaisy({ messages: allMessages, memories, mode: 'summarize', userName })
+      const totalUserMsgs = allMessages.filter(m => m.role === 'user').length
+
       const { data } = await supabase.from('conversation_logs')
         .upsert(
-          { user_id: session.user.id, session_id: sessionId, messages: msgs, summary, message_count: userMsgs.length },
-          { onConflict: 'session_id' }
+          { user_id: session.user.id, log_date: logDate, messages: allMessages, summary, message_count: totalUserMsgs, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id,log_date' }
         ).select()
       if (data && data[0]) {
         setLogs(prev => {
-          const filtered = prev.filter(l => l.session_id !== sessionId)
+          const filtered = prev.filter(l => l.log_date !== logDate)
           return [data[0], ...filtered]
         })
       }
     } catch(e) { console.log('Log save skipped:', e.message) }
   }, [memories, profile, session.user.id])
 
-  // Start a fresh chat — saves current one first if it has messages
+  // Start a fresh chat window — saves current one first
   const handleNewChat = useCallback(async () => {
     const userMsgs = messages.filter(m => m.role === 'user')
-    if (userMsgs.length >= 1) {
-      // Trigger immediate save before resetting
-      await handleSaveLog(messages, /* will get new session from ChatView */ Date.now().toString())
-    }
-    // Re-mount ChatView with a fresh session by forcing a key change
+    if (userMsgs.length >= 1) await handleSaveLog(messages)
     setChatKey(k => k + 1)
     const h = new Date().getHours()
     const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
-    setMessages([{ role: 'assistant', content: `${g} again, ${profile?.name || 'friend'}. Starting a fresh conversation — what's on your mind?` }])
+    setMessages([{ role: 'assistant', content: `${g} again, ${profile?.name || 'friend'}. Fresh start — what's on your mind?` }])
   }, [messages, handleSaveLog, profile])
+
+  // Resume an old chat from Logs
+  const handleResumeChat = useCallback((logMessages) => {
+    setChatKey(k => k + 1)
+    setMessages(logMessages || [])
+    setView('chat')
+  }, [])
 
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
@@ -557,7 +588,7 @@ export default function Sanctum({ session }) {
         {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat}/>}
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
-        {view==='logs'         && <LogsView logs={logs}/>}
+        {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat}/>}
         {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut}/>}
       </div>
     </div>
