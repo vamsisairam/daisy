@@ -447,19 +447,36 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   useEffect(() => { messagesRef.current = messages }, [messages])
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:'smooth'})},[messages,thinking])
 
-  // 2-minute idle timer — always uses latest messages via ref
+  // Save helper — used by timer and visibility handler
+  const doSave = useCallback(async () => {
+    const msgs = messagesRef.current
+    if (msgs.filter(m=>m.role==='user').length < 1) return
+    setSaveStatus('saving')
+    await onSaveLog(msgs)
+    setSaveStatus('saved')
+    setTimeout(() => setSaveStatus(null), 3000)
+  }, [onSaveLog])
+
+  // 1-minute idle timer
   useEffect(()=>{
     const userMsgs = messages.filter(m=>m.role==='user')
     if(userMsgs.length < 1) return
     clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
-      setSaveStatus('saving')
-      await onSaveLog(messagesRef.current)
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus(null), 3000)
-    }, 60000)
+    saveTimerRef.current = setTimeout(doSave, 60000)
     return () => clearTimeout(saveTimerRef.current)
-  }, [messages.length])
+  }, [messages.length, doSave])
+
+  // Mobile: save when user switches app or locks screen
+  useEffect(()=>{
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(saveTimerRef.current)
+        doSave()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [doSave])
 
   const extractMemories=useCallback(async(msgs)=>{
     if(msgs.filter(m=>m.role==='user').length<2) return
