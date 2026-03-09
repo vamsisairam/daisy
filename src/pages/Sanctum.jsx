@@ -8,11 +8,11 @@ const EMOTION_COLOR = {
   anxious:'#ff8c42', hopeful:'#5ec8c8', melancholy:'#7890c0',
 }
 
-async function callDaisy({ messages, memories, mode, userName }) {
+async function callDaisy({ messages, memories, mode, userName, recentDiary = [], memoryList = [] }) {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, memories, mode: mode || 'chat', userName }),
+    body: JSON.stringify({ messages, memories, mode: mode || 'chat', userName, recentDiary, memoryList }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'API error')
@@ -434,7 +434,7 @@ function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, o
 // ─── Chat View ─────────────────────────────────────────────────
 function genId() { return Math.random().toString(36).slice(2)+Date.now().toString(36) }
 
-function ChatView({ messages, setMessages, memories, setMemories, profile, session, onSaveLog, onNewChat }) {
+function ChatView({ messages, setMessages, memories, setMemories, profile, session, onSaveLog, onNewChat, logs = [] }) {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // 'saving' | 'saved' | null
@@ -490,20 +490,57 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
     }catch(e){console.log('Memory extract skipped:',e.message)}
   },[memories,session.user.id,userName])
 
+  // Recent diary summaries — last 2 entries — for memory context
+  const recentDiary = logs
+    .slice()
+    .sort((a,b) => (b.log_date||b.created_at) > (a.log_date||a.created_at) ? 1 : -1)
+    .slice(0,2)
+    .map(l => l.summary)
+    .filter(Boolean)
+
+  // Detect forget intent
+  const isForgetIntent = (text) => {
+    const lower = text.toLowerCase()
+    return lower.includes('forget') || lower.includes('delete that') || lower.includes('erase that') || lower.includes('don\'t remember') || lower.includes('remove that')
+  }
+
   const send=async()=>{
     const text=input.trim()
     if(!text||thinking) return
     setInput('')
-    // reset textarea height
     if(inputRef.current){inputRef.current.style.height='50px'}
     const updated=[...messages,{role:'user',content:text}]
     setMessages(updated)
     setThinking(true)
     try{
-      const reply=await callDaisy({messages:updated,memories,mode:'chat',userName})
-      const withReply=[...updated,{role:'assistant',content:reply}]
-      setMessages(withReply)
-      if(updated.filter(m=>m.role==='user').length%3===0) extractMemories(withReply)
+      // Handle forget requests
+      if(isForgetIntent(text) && memories.length > 0){
+        const raw = await callDaisy({ messages: updated, memories, mode:'forget', userName, memoryList: memories })
+        try{
+          const parsed = JSON.parse(raw)
+          if(parsed.delete && parsed.delete.length > 0){
+            // Delete from Supabase
+            await Promise.all(parsed.delete.map(id =>
+              supabase.from('memories').delete().eq('id', id).eq('user_id', session.user.id)
+            ))
+            // Remove from local state
+            setMemories(prev => prev.filter(m => !parsed.delete.includes(m.id)))
+            const reply = `Done — I've let that go. It's gone from my memory. 🌼`
+            setMessages([...updated, {role:'assistant', content: reply}])
+          } else {
+            const reply = parsed.message || `I looked through what I remember, but I couldn't find anything specific about that.`
+            setMessages([...updated, {role:'assistant', content: reply}])
+          }
+        }catch{
+          setMessages([...updated, {role:'assistant', content:"I tried to forget that but something went wrong on my end."}])
+        }
+      } else {
+        // Normal chat — pass recent diary context
+        const reply=await callDaisy({messages:updated, memories, mode:'chat', userName, recentDiary})
+        const withReply=[...updated,{role:'assistant',content:reply}]
+        setMessages(withReply)
+        if(updated.filter(m=>m.role==='user').length%3===0) extractMemories(withReply)
+      }
     }catch{
       setMessages(prev=>[...prev,{role:'assistant',content:'Something went wrong. Try again? 🌼'}])
     }finally{setThinking(false);setTimeout(()=>inputRef.current?.focus(),100)}
@@ -759,7 +796,7 @@ export default function Sanctum({ session }) {
           </div>
         </div>
 
-        {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat}/>}
+        {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat} logs={logs}/>}
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
         {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat}/>}

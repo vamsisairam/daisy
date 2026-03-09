@@ -6,11 +6,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { messages, memories = [], mode = 'chat', userName = 'friend' } = req.body;
+  const { messages, memories = [], mode = 'chat', userName = 'friend', recentDiary = [], memoryList = [] } = req.body;
 
   const memCtx = memories.length > 0
     ? `\n\nWhat you know about ${userName} from past conversations:\n${memories.map(m => `• [${m.emotion} | ${m.theme}] ${m.content}`).join('\n')}`
     : `\n\nThis is your first conversation with ${userName}. Be curious — gently learn who they are and what's going on in their life.`;
+
+  const diaryCtx = recentDiary.length > 0
+    ? `\n\nRecent diary entries (what ${userName} has shared in past sessions):\n${recentDiary.map((d, i) => `[${i === 0 ? 'Most recent' : '2 days ago'}] ${d}`).join('\n')}`
+    : '';
 
   const systems = {
     chat: `You are Daisy — a warm, witty, emotionally intelligent companion. Part best friend, part therapist. You read the room and respond to what the person actually needs.
@@ -29,12 +33,21 @@ HOW YOU TALK:
 - QUESTIONS: Rarely ask questions. Maybe once every 6-8 messages, and only if you're genuinely curious about something specific. Never ask just to fill the silence. Most responses should end with a statement, observation, or reaction — not a question mark. When in doubt, don't ask.
 - Never diagnose. Never lecture. If someone seems in crisis, gently suggest a real professional too.
 - Assume the person is from India unless they say otherwise. Understand Indian family dynamics, work culture, social pressures, and life context naturally — don't make it a big deal, just get it.
-${memCtx}`,
+${memCtx}${diaryCtx}`,
 
     extract: `Analyze this conversation and extract 1-3 meaningful insights about the person's inner world. Return ONLY valid JSON — no markdown, no extra text:
 [{"content":"one clear sentence describing an insight about them","emotion":"happy|sad|anxious|grateful|excited|neutral|reflective|hopeful|melancholy","theme":"family|work|love|health|growth|loss|friendship|creativity|purpose|identity|general"}]`,
 
     letter: `Write a beautiful, personal letter to ${userName} based on everything you know about their inner world. Write as Daisy — part caring friend, part wise therapist who truly sees them. Reference specific patterns and memories. Gently name something they might not have fully seen about themselves. Be warm, honest, and real — not overly poetic. End with genuine encouragement. Sign off as "Daisy 🌼". 4-5 paragraphs.${memCtx}`,
+
+    forget: `The user wants Daisy to forget something specific. Given the user's message and the list of stored memories, identify which memory ID(s) to delete.
+
+Stored memories:
+${memoryList.map(m => `ID:${m.id} — ${m.content}`).join('\n')}
+
+Return ONLY valid JSON — an array of IDs to delete, or empty array if nothing matches:
+{"delete": ["id1", "id2"]}
+If nothing matches, return: {"delete": [], "message": "I don't seem to have a memory about that."}`,
 
     summarize: `You are writing a detailed diary entry for ${userName} based on their conversation with Daisy (an AI companion).
 
@@ -54,6 +67,8 @@ Return ONLY the diary text — no title, no date, no label, no extra formatting.
     } else if (mode === 'summarize') {
       const convo = messages.map(m => `${m.role === 'user' ? userName : 'Daisy'}: ${m.content}`).join('\n');
       anthropicMessages = [{ role: 'user', content: `Summarize this conversation:\n\n${convo}` }];
+    } else if (mode === 'forget') {
+      anthropicMessages = [{ role: 'user', content: messages[messages.length - 1]?.content || '' }];
     } else {
       anthropicMessages = messages;
     }
