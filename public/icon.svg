@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#060d1a"/>
+  <circle cx="256" cy="256" r="80" fill="#C9A84C" opacity="0.9"/>
+  <ellipse cx="401" cy="256" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(0, 401, 256)"/>
+  <ellipse cx="358.5304832720494" cy="358.53048327204937" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(45, 358.5304832720494, 358.53048327204937)"/>
+  <ellipse cx="256" cy="401" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(90, 256, 401)"/>
+  <ellipse cx="153.46951672795063" cy="358.5304832720494" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(135, 153.46951672795063, 358.5304832720494)"/>
+  <ellipse cx="111" cy="256" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(180, 111, 256)"/>
+  <ellipse cx="153.46951672795058" cy="153.46951672795063" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(225, 153.46951672795058, 153.46951672795063)"/>
+  <ellipse cx="255.99999999999997" cy="111" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(270, 255.99999999999997, 111)"/>
+  <ellipse cx="358.53048327204937" cy="153.46951672795058" rx="40" ry="65" fill="#C9A84C" opacity="0.7" transform="rotate(315, 358.53048327204937, 153.46951672795058)"/>
+  <circle cx="256" cy="256" r="55" fill="#C9A84C"/>
+</svg>
