@@ -241,18 +241,36 @@ function LogsView({ logs, onResume, memories }) {
                     </button>
                   </div>
 
-                  {/* Messages */}
+                  {/* Messages — capped height so diary doesn't become infinite on mobile */}
                   <div style={{padding:'18px 20px',display:'flex',flexDirection:'column',gap:10,background:'rgba(0,0,0,0.1)'}}>
                     {realMsgs.map((m, mi) => (
-                      <div key={mi} style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start',alignItems:'flex-end',gap:8}}>
-                        {m.role==='assistant' && (
-                          <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(201,168,76,0.12)',border:'1px solid rgba(201,168,76,0.22)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flexShrink:0}}>🌼</div>
-                        )}
-                        <div style={{maxWidth:'80%',padding:'10px 14px',borderRadius:m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',background:m.role==='user'?'rgba(201,168,76,0.1)':'rgba(255,255,255,0.05)',border:`1px solid ${m.role==='user'?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.07)'}`,fontSize:14,fontWeight:m.role==='user'?500:400,lineHeight:1.65,color:m.role==='user'?'#e0d0b0':'#b0a090',wordBreak:'break-word'}}>
-                          {m.content}
+                      <div key={mi} style={{display:'flex',flexDirection:'column',alignItems:m.role==='user'?'flex-end':'flex-start',gap:4}}>
+                        <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:m.role==='user'?'row-reverse':'row'}}>
+                          {m.role==='assistant' && (
+                            <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(201,168,76,0.12)',border:'1px solid rgba(201,168,76,0.22)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flexShrink:0}}>🌼</div>
+                          )}
+                          <div style={{maxWidth:'80%',padding:'10px 14px',borderRadius:m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',background:m.role==='user'?'rgba(201,168,76,0.1)':'rgba(255,255,255,0.05)',border:`1px solid ${m.role==='user'?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.07)'}`,fontSize:14,fontWeight:m.role==='user'?500:400,lineHeight:1.65,color:m.role==='user'?'#e0d0b0':'#b0a090',wordBreak:'break-word'}}>
+                            {m.content}
+                          </div>
                         </div>
+                        {m.time && (
+                          <div style={{fontSize:10,color:'#3a3530',fontFamily:'DM Mono,monospace',paddingLeft:m.role==='assistant'?34:0,paddingRight:m.role==='user'?4:0}}>
+                            {new Date(m.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
+
+                  {/* Continue Chat — also at bottom so you don't have to scroll back up */}
+                  <div style={{padding:'12px 20px',background:'rgba(0,0,0,0.15)',borderTop:'1px solid rgba(255,255,255,0.05)',display:'flex',justifyContent:'flex-end'}}>
+                    <button
+                      onClick={() => onResume(log.messages || [])}
+                      style={{background:'rgba(201,168,76,0.15)',border:'1px solid rgba(201,168,76,0.4)',borderRadius:8,padding:'8px 20px',color:'#C9A84C',fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.15s',WebkitTapHighlightColor:'transparent',letterSpacing:'0.03em'}}
+                      onMouseEnter={e => e.currentTarget.style.background='rgba(201,168,76,0.25)'}
+                      onMouseLeave={e => e.currentTarget.style.background='rgba(201,168,76,0.15)'}>
+                      Continue Chat →
+                    </button>
                   </div>
                 </div>
               )}
@@ -357,59 +375,6 @@ function LetterView({ memories, userName, letters, setLetters, logs }) {
 
 // ─── Profile View ─────────────────────────────────────────────
 
-// ─── Mood Chart ───────────────────────────────────────────────
-const EMOTION_COLORS = {
-  joy:'#C9A84C', happy:'#C9A84C', love:'#e87676', excited:'#76c4e8',
-  grateful:'#82c77a', hopeful:'#a882c7', neutral:'#6a6258',
-  sad:'#5a7acc', sadness:'#5a7acc', anxious:'#e8a876', anxiety:'#e8a876',
-  anger:'#cc5a5a', angry:'#cc5a5a', melancholy:'#8a7acc', reflective:'#9a9a6a',
-}
-function MoodChart({ memories }) {
-  const last30 = [...memories]
-    .filter(m => m.created_at)
-    .sort((a,b) => new Date(a.created_at)-new Date(b.created_at))
-    .slice(-30)
-
-  if (last30.length < 3) return (
-    <div style={{textAlign:'center',padding:'24px',color:'#4a4540',fontSize:14}}>
-      Chat more to see your mood trend 🌼
-    </div>
-  )
-
-  const emotionToScore = { joy:9,happy:9,love:8,excited:8,grateful:8,hopeful:7,neutral:5,reflective:5,melancholy:4,anxious:3,anxiety:3,sad:2,sadness:2,anger:1,angry:1 }
-  const points = last30.map((m,i) => ({
-    x: i / (last30.length-1) * 100,
-    y: 100 - ((emotionToScore[m.emotion]||5) / 9 * 80 + 10),
-    emotion: m.emotion,
-    color: EMOTION_COLORS[m.emotion] || '#6a6258',
-  }))
-
-  const pathD = points.map((p,i) => `${i===0?'M':'L'}${p.x},${p.y}`).join(' ')
-
-  return (
-    <div style={{marginBottom:28}}>
-      <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#6a6258',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Mood — last {last30.length} memories</div>
-      <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:'16px',overflow:'hidden'}}>
-        <svg viewBox="0 0 100 60" preserveAspectRatio="none" style={{width:'100%',height:80}}>
-          <defs>
-            <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#C9A84C" stopOpacity="0.3"/>
-              <stop offset="100%" stopColor="#C9A84C" stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-          <path d={pathD + ` L100,60 L0,60 Z`} fill="url(#moodGrad)"/>
-          <path d={pathD} fill="none" stroke="#C9A84C" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/>
-          {points.map((p,i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="1.2" fill={p.color}/>
-          ))}
-        </svg>
-        <div style={{display:'flex',justifyContent:'space-between',marginTop:6,fontFamily:'DM Mono,monospace',fontSize:10,color:'#4a4540'}}>
-          <span>older</span><span>recent</span>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, onUpdateName, streak=0 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -515,9 +480,6 @@ function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, o
             </div>
           ))}
         </div>
-
-        {/* Mood chart */}
-        <MoodChart memories={memories}/>
 
         {/* Streak */}
         {streak > 0 && (
@@ -914,12 +876,11 @@ export default function Sanctum({ session }) {
       let summary = null
 
       if (existing) {
-        // Merge — deduplicate by content+role combo (not just content)
+        // Merge — deduplicate by content+role combo
         const existingMsgs = existing.messages || []
         const seenKeys = new Set(existingMsgs.map(m => m.role + '||' + m.content))
-        // Skip the greeting (first assistant msg) from new messages
-        const incomingMsgs = msgs[0]?.role === 'assistant' && msgs.length > 1 ? msgs.slice(1) : msgs
-        const uniqueNew = incomingMsgs.filter(m => !seenKeys.has(m.role + '||' + m.content))
+        // All incoming messages — deduplicate against what's already saved
+        const uniqueNew = msgs.filter(m => !seenKeys.has(m.role + '||' + m.content))
         allMessages = [...existingMsgs, ...uniqueNew]
         // Regenerate summary if it was missing, otherwise keep it
         if (existing.summary) {
