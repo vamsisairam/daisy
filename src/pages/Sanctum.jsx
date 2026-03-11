@@ -144,13 +144,6 @@ function LogsView({ logs, onResume, memories }) {
       )
     : logs
 
-  // Sort by date desc — each log is one day
-  const sorted = [...logs].sort((a, b) => {
-    const da = a.log_date || a.created_at
-    const db = b.log_date || b.created_at
-    return db > da ? 1 : -1
-  })
-
   const fmtDate = (dateStr) => {
     const d = new Date(dateStr + (dateStr.length === 10 ? 'T12:00:00' : ''))
     const todayIST = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
@@ -326,22 +319,22 @@ function LetterView({ memories, userName, letters, setLetters, logs }) {
       <div style={{maxWidth:660,margin:'0 auto'}}>
         <div style={{fontSize:22,fontWeight:800,color:'#C9A84C',marginBottom:8}}>Letters from Daisy</div>
         <div style={{fontSize:15,fontWeight:400,color:'#6a6258',marginBottom:10,lineHeight:1.7}}>
-          {memories.length<3
-            ? <><strong style={{color:'#8a7f72',fontWeight:700}}>{3-memories.length} more conversation{3-memories.length!==1?'s':''}</strong> needed to unlock letters</>
+          {(logs||[]).length<1
+            ? <><strong style={{color:'#8a7f72',fontWeight:700}}>Have one conversation</strong> to unlock letters</>
             : 'Daisy writes you a personal letter from everything she knows about you'}
         </div>
         {error&&<div style={{background:'rgba(232,118,118,0.1)',border:'1px solid rgba(232,118,118,0.2)',borderRadius:8,padding:'10px 14px',color:'#e87676',fontSize:14,fontWeight:500,marginBottom:16}}>{error}</div>}
 
-        <button onClick={generateLetter} disabled={generating||memories.length<3}
-          style={{padding:'13px 32px',background:memories.length>=3&&!generating?'rgba(201,168,76,0.12)':'rgba(255,255,255,0.04)',border:`1px solid ${memories.length>=3?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.08)'}`,borderRadius:10,color:memories.length>=3?'#C9A84C':'#6a6258',fontSize:15,fontWeight:700,cursor:memories.length>=3&&!generating?'pointer':'not-allowed',transition:'all 0.2s',marginBottom:40,display:'flex',alignItems:'center',gap:8}}
-          onMouseEnter={e=>{if(memories.length>=3&&!generating) e.currentTarget.style.background='rgba(201,168,76,0.18)'}}
-          onMouseLeave={e=>{if(memories.length>=3&&!generating) e.currentTarget.style.background='rgba(201,168,76,0.12)'}}>
+        <button onClick={generateLetter} disabled={generating||(logs||[]).length<1}
+          style={{padding:'13px 32px',background:(logs||[]).length>=1&&!generating?'rgba(201,168,76,0.12)':'rgba(255,255,255,0.04)',border:`1px solid ${(logs||[]).length>=1?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.08)'}`,borderRadius:10,color:(logs||[]).length>=1?'#C9A84C':'#6a6258',fontSize:15,fontWeight:700,cursor:(logs||[]).length>=1&&!generating?'pointer':'not-allowed',transition:'all 0.2s',marginBottom:40,display:'flex',alignItems:'center',gap:8}}
+          onMouseEnter={e=>{if((logs||[]).length>=1&&!generating) e.currentTarget.style.background='rgba(201,168,76,0.18)'}}
+          onMouseLeave={e=>{if((logs||[]).length>=1&&!generating) e.currentTarget.style.background='rgba(201,168,76,0.12)'}}>
           {generating?<><span style={{animation:'blink 0.8s ease infinite'}}>🌼</span> Writing your letter...</>:<>🌼 Write Me a Letter</>}
         </button>
 
-        <button onClick={generateWeeklyLetter} disabled={generatingWeekly||generating||memories.length<3}
-          style={{padding:'11px 32px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,color:memories.length>=3?'#8a7f72':'#4a4540',fontSize:14,fontWeight:600,cursor:memories.length>=3&&!generatingWeekly?'pointer':'not-allowed',transition:'all 0.2s',marginBottom:40,display:'flex',alignItems:'center',gap:8}}
-          onMouseEnter={e=>{if(memories.length>=3&&!generatingWeekly) e.currentTarget.style.borderColor='rgba(201,168,76,0.25)'}}
+        <button onClick={generateWeeklyLetter} disabled={generatingWeekly||generating||(logs||[]).length<1}
+          style={{padding:'11px 32px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,color:(logs||[]).length>=1?'#8a7f72':'#4a4540',fontSize:14,fontWeight:600,cursor:(logs||[]).length>=1&&!generatingWeekly?'pointer':'not-allowed',transition:'all 0.2s',marginBottom:40,display:'flex',alignItems:'center',gap:8}}
+          onMouseEnter={e=>{if((logs||[]).length>=1&&!generatingWeekly) e.currentTarget.style.borderColor='rgba(201,168,76,0.25)'}}
           onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
           {generatingWeekly?<><span style={{animation:'blink 0.8s ease infinite'}}>📅</span> Writing your week...</>:<>📅 This Week's Letter</>}
         </button>
@@ -593,7 +586,7 @@ function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, o
 // ─── Chat View ─────────────────────────────────────────────────
 function genId() { return Math.random().toString(36).slice(2)+Date.now().toString(36) }
 
-function ChatView({ messages, setMessages, memories, setMemories, profile, session, onSaveLog, onNewChat, logs = [] }) {
+function ChatView({ messages, setMessages, memories, setMemories, profile, session, onSaveLog, onNewChat, logs = [], memoriesSRef }) {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // 'saving' | 'saved' | null
@@ -640,14 +633,14 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   const extractMemories=useCallback(async(msgs)=>{
     if(msgs.filter(m=>m.role==='user').length<2) return
     try{
-      const raw=await callDaisy({messages:msgs,memories,mode:'extract',userName})
+      const raw=await callDaisy({messages:msgs,memories:memoriesSRef?.current||memories,mode:'extract',userName})
       const extracted=JSON.parse(raw.replace(/```json|```/g,'').trim())
       if(Array.isArray(extracted)&&extracted.length>0){
         const{data}=await supabase.from('memories').insert(extracted.filter(e=>e.content).map(m=>({...m,user_id:session.user.id}))).select()
-        if(data) setMemories(prev=>[...prev,...data])
+        if(data) { setMemories(prev=>{ const next=[...prev,...data]; if(memoriesSRef) memoriesSRef.current=next; return next }) }
       }
     }catch(e){console.log('Memory extract skipped:',e.message)}
-  },[memories,session.user.id,userName])
+  },[session.user.id,userName])
 
   // Recent diary summaries — last 2 entries — for memory context
   const recentDiary = logs
@@ -721,7 +714,11 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
         const reply=await callDaisy({messages:updated, memories, mode:'chat', userName, recentDiary})
         const withReply=[...updated,{role:'assistant',content:reply,time:new Date().toISOString()}]
         setMessages(withReply)
+        // Extract memories every 3rd user message
         if(updated.filter(m=>m.role==='user').length%3===0) extractMemories(withReply)
+        // Save to diary after every exchange — also resets the idle timer
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = setTimeout(() => onSaveLog(withReply), 10000)
       }
     }catch{
       setMessages(prev=>[...prev,{role:'assistant',content:'Something went wrong. Try again? 🌼'}])
@@ -828,17 +825,19 @@ export default function Sanctum({ session }) {
   const [logs,setLogs]         = useState([])
   const [pushAsked,setPushAsked] = useState(false)
   const [streak,setStreak]       = useState(0)
+  const profileRef  = useRef(null)
+  const memoriesSRef = useRef([])
   const nav = useNavigate()
 
   useEffect(()=>{
     supabase.from('profiles').select('*').eq('id',session.user.id).single()
       .then(({data})=>{
-        if(data) setProfile(data)
+        if(data) { setProfile(data); profileRef.current = data }
         else supabase.from('profiles').insert({id:session.user.id,name:'Wanderer'}).select().single()
-          .then(({data:p})=>{ if(p) setProfile(p) })
+          .then(({data:p})=>{ if(p) { setProfile(p); profileRef.current = p } })
       })
     supabase.from('memories').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
-      .then(({data})=>{if(data) setMemories(data)})
+      .then(({data})=>{if(data) { setMemories(data); memoriesSRef.current = data }})
     supabase.from('conversation_logs').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
       .then(({data})=>{
         if(data) {
@@ -860,6 +859,10 @@ export default function Sanctum({ session }) {
       })
     try{const s=localStorage.getItem('daisy_letters');if(s) setLetters(JSON.parse(s))}catch{}
   },[session.user.id])
+
+  // Keep refs in sync with state — so callbacks always have latest values without deps
+  useEffect(()=>{ profileRef.current = profile },[profile])
+  useEffect(()=>{ memoriesSRef.current = memories },[memories])
 
   useEffect(()=>{
     if(!profile) return
@@ -892,12 +895,12 @@ export default function Sanctum({ session }) {
   },[profile?.id])
 
   // One diary entry per calendar day
-  // First save: generate summary. Re-saves: just append messages, keep existing summary
+  // Uses refs so it never goes stale and never needs to be recreated
   const handleSaveLog = useCallback(async (msgs) => {
     const newUserMsgs = msgs.filter(m => m.role === 'user')
     if (newUserMsgs.length < 1) return
-    const userName = profile?.name || 'friend'
-    const logDate = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'}) // YYYY-MM-DD in IST
+    const userName = profileRef.current?.name || 'friend'
+    const logDate = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
     try {
       // Check if today already has an entry
       const { data: existing } = await supabase
@@ -911,36 +914,40 @@ export default function Sanctum({ session }) {
       let summary = null
 
       if (existing) {
-        // Merge messages — deduplicate so re-saves don't double-append
+        // Merge — deduplicate by content+role combo (not just content)
         const existingMsgs = existing.messages || []
-        const newMsgs = msgs.slice(1) // skip greeting
-        const seenContents = new Set(existingMsgs.map(m => m.content))
-        const uniqueNew = newMsgs.filter(m => !seenContents.has(m.content))
+        const seenKeys = new Set(existingMsgs.map(m => m.role + '||' + m.content))
+        // Skip the greeting (first assistant msg) from new messages
+        const incomingMsgs = msgs[0]?.role === 'assistant' && msgs.length > 1 ? msgs.slice(1) : msgs
+        const uniqueNew = incomingMsgs.filter(m => !seenKeys.has(m.role + '||' + m.content))
         allMessages = [...existingMsgs, ...uniqueNew]
-        // Keep the existing summary — don't regenerate every save
-        summary = existing.summary
+        // Regenerate summary if it was missing, otherwise keep it
+        if (existing.summary) {
+          summary = existing.summary
+        } else {
+          summary = await callDaisy({ messages: allMessages, memories: memoriesSRef.current, mode: 'summarize', userName })
+        }
       } else {
-        // First save of the day — generate the summary once
-        summary = await callDaisy({ messages: allMessages, memories, mode: 'summarize', userName })
+        // First save of the day — generate summary
+        summary = await callDaisy({ messages: allMessages, memories: memoriesSRef.current, mode: 'summarize', userName })
       }
 
       const totalUserMsgs = allMessages.filter(m => m.role === 'user').length
-
-      const { data } = await supabase.from('conversation_logs')
+      const { data, error } = await supabase.from('conversation_logs')
         .upsert(
           { user_id: session.user.id, log_date: logDate, messages: allMessages, summary, message_count: totalUserMsgs, updated_at: new Date().toISOString() },
           { onConflict: 'user_id,log_date' }
         ).select()
+      if (error) throw error
       if (data && data[0]) {
         setLogs(prev => {
-          const filtered = prev.filter(l => l.log_date !== logDate)
-          return [data[0], ...filtered]
+          const rest = prev.filter(l => l.log_date !== logDate)
+          return [data[0], ...rest]
         })
       }
-    } catch(e) { console.log('Log save skipped:', e.message) }
-    // Ask for push permission after first save — feels natural here
+    } catch(e) { console.error('Diary save error:', e.message) }
     requestPushIfNeeded()
-  }, [memories, profile, session.user.id, pushAsked])
+  }, [session.user.id])
 
   // Start a fresh chat window — saves current one first
   const handleNewChat = useCallback(async () => {
@@ -1013,7 +1020,7 @@ export default function Sanctum({ session }) {
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
   return (
-    <div style={{height:'100vh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f38 0%, #060d1a 60%)',overflow:'hidden'}}>
+    <div style={{height:'100vh',height:'100dvh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f38 0%, #060d1a 60%)',overflow:'hidden'}}>
 
       {/* Sidebar / Bottom Tab */}
       <div className="sidebar">
@@ -1044,7 +1051,7 @@ export default function Sanctum({ session }) {
           </div>
         </div>
 
-        {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat} logs={logs}/>}
+        {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat} logs={logs} memoriesSRef={memoriesSRef}/>}
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters} logs={logs}/>}
         {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat} memories={memories}/>}
