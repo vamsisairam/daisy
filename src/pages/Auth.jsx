@@ -90,7 +90,7 @@ export default function Auth() {
           <div style={{ background: 'rgba(82,199,122,0.08)', border: '1px solid rgba(82,199,122,0.3)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, animation: 'fadeUp 0.3s ease both' }}>
             <div style={{ color: '#52c77a', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{success}</div>
             <div style={{ color: '#6a9a70', fontSize: 13, fontWeight: 400, lineHeight: 1.5 }}>
-              If you got a confirmation email, Go fast and click it! You're a step close to Daisy.
+              If you got a confirmation email, you can ignore it — just sign in directly below.
             </div>
           </div>
         )}

@@ -38,6 +38,8 @@ ${memCtx}${diaryCtx}`,
     extract: `Analyze this conversation and extract 1-3 meaningful insights about the person's inner world. Return ONLY valid JSON — no markdown, no extra text:
 [{"content":"one clear sentence describing an insight about them","emotion":"happy|sad|anxious|grateful|excited|neutral|reflective|hopeful|melancholy","theme":"family|work|love|health|growth|loss|friendship|creativity|purpose|identity|general"}]`,
 
+    weekly: `Write a warm, personal weekly letter to ${userName} from Daisy, reflecting on the past week of conversations. Based on the diary entries and memories provided, highlight what was talked about, any growth or insights noticed, patterns in their emotional world, and something encouraging for the week ahead. Write as Daisy — caring, honest, not overly poetic. 3-4 paragraphs. Sign off as "Daisy 🌼".${memCtx}${diaryCtx}`,
+
     letter: `Write a beautiful, personal letter to ${userName} based on everything you know about their inner world. Write as Daisy — part caring friend, part wise therapist who truly sees them. Reference specific patterns and memories. Gently name something they might not have fully seen about themselves. Be warm, honest, and real — not overly poetic. End with genuine encouragement. Sign off as "Daisy 🌼". 4-5 paragraphs.${memCtx}`,
 
     forget: `The user wants Daisy to forget something specific. Given the user's message and the list of stored memories, identify which memory ID(s) to delete.
@@ -49,15 +51,17 @@ Return ONLY valid JSON — an array of IDs to delete, or empty array if nothing 
 {"delete": ["id1", "id2"]}
 If nothing matches, return: {"delete": [], "message": "I don't seem to have a memory about that."}`,
 
-    summarize: `You are writing a detailed diary entry for ${userName} based on their conversation with Daisy (an AI companion).
+    summarize: `You are writing a diary entry for ${userName} based on their conversation with Daisy.
 
-Write 3-5 sentences in first person, as if ${userName} is writing in their own diary tonight.
-Cover: what topics came up, how they were feeling, any insights or shifts in perspective, and what Daisy helped them see or work through.
-Be warm, honest, and specific — reference actual things discussed. Don't be generic.
-Use natural diary language: "I talked about...", "I was feeling...", "I realized...", "Daisy pointed out...", "It helped to say out loud that..."
-End with one sentence capturing the emotional tone of the conversation overall.
+STRICT RULES:
+- Write ONLY what was actually said in the conversation. Do not infer, assume, or add anything that wasn't explicitly stated.
+- Do NOT write what the user "must have felt" or "probably thought" — only what they actually said.
+- Write in first person as ${userName}: "I said...", "I told Daisy...", "Daisy said...", "I asked about..."
+- Include the time of messages where available so Daisy can recall when things were discussed.
+- Keep it factual and plain — like a log of what was said, written as "I" statements.
+- 3-5 sentences max. No emotion assumptions. No therapy language.
 
-Return ONLY the diary text — no title, no date, no label, no extra formatting.`,
+Return ONLY the diary text — no title, no date, no label, no formatting.`,
   };
 
   try {
@@ -65,8 +69,12 @@ Return ONLY the diary text — no title, no date, no label, no extra formatting.
     if (mode === 'extract') {
       anthropicMessages = [{ role: 'user', content: `Extract insights from this conversation: ${JSON.stringify(messages)}` }];
     } else if (mode === 'summarize') {
-      const convo = messages.map(m => `${m.role === 'user' ? userName : 'Daisy'}: ${m.content}`).join('\n');
-      anthropicMessages = [{ role: 'user', content: `Summarize this conversation:\n\n${convo}` }];
+      const convo = messages.map(m => {
+        const speaker = m.role === 'user' ? userName : 'Daisy'
+        const time = m.time ? ` [${new Date(m.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}]` : ''
+        return `${speaker}${time}: ${m.content}`
+      }).join('\n')
+      anthropicMessages = [{ role: 'user', content: `Write a diary entry for this conversation:\n\n${convo}` }];
     } else if (mode === 'forget') {
       anthropicMessages = [{ role: 'user', content: messages[messages.length - 1]?.content || '' }];
     } else {

@@ -26,6 +26,22 @@ function ConstellationView({ memories }) {
   const canvasRef = useRef(null)
   const hoveredRef = useRef(null)
   const [tooltip, setTooltip] = useState(null)
+  const [shared, setShared] = useState(false)
+
+  const shareRandomStar = async () => {
+    if (!memories.length) return
+    const m = memories[Math.floor(Math.random()*memories.length)]
+    const text = `✦ A star from my constellation on Daisy\n\n"${m.content}"\n\n— shared from daisy.app`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title:'A star from Daisy', text })
+      } else {
+        await navigator.clipboard.writeText(text)
+        setShared(true)
+        setTimeout(()=>setShared(false), 2500)
+      }
+    } catch{}
+  }
   const starsRef = useRef([])
   const rafRef = useRef(null)
 
@@ -75,6 +91,13 @@ function ConstellationView({ memories }) {
 
   return (
     <div style={{flex:1,position:'relative',overflow:'hidden'}}>
+      {/* Share button */}
+      {memories.length > 0 && (
+        <button onClick={shareRandomStar}
+          style={{position:'absolute',top:16,right:16,zIndex:10,background:'rgba(0,0,0,0.4)',border:'1px solid rgba(201,168,76,0.3)',borderRadius:10,padding:'8px 16px',color:shared?'#82c77a':'#C9A84C',fontSize:13,fontWeight:600,cursor:'pointer',transition:'all 0.2s',backdropFilter:'blur(8px)',letterSpacing:'0.04em'}}>
+          {shared ? '✓ Copied!' : '✦ Share a Star'}
+        </button>
+      )}
       <canvas ref={canvasRef} onMouseMove={handleMove} onTouchMove={handleMove} onMouseLeave={()=>{hoveredRef.current=null;setTooltip(null)}} style={{width:'100%',height:'100%',cursor:tooltip?'pointer':'crosshair',touchAction:'none'}}/>
       {tooltip&&(
         <div style={{position:'absolute',left:Math.min(tooltip.x+18,window.innerWidth-250),top:Math.max(tooltip.y-80,10),background:'rgba(6,13,26,0.97)',border:`1px solid ${tooltip.color}55`,borderRadius:10,padding:'12px 16px',maxWidth:240,pointerEvents:'none',backdropFilter:'blur(16px)',zIndex:10,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
@@ -94,8 +117,32 @@ function ConstellationView({ memories }) {
 }
 
 // ─── Logs View ─────────────────────────────────────────────────
-function LogsView({ logs, onResume }) {
+function LogsView({ logs, onResume, memories }) {
   const [expanded, setExpanded] = useState(null)
+  const [search, setSearch] = useState('')
+
+  // Export diary as plain text download
+  const exportDiary = () => {
+    const sorted = [...logs].sort((a,b)=>(b.log_date||b.created_at)>(a.log_date||a.created_at)?1:-1)
+    const text = sorted.map(l => {
+      const date = l.log_date || l.created_at?.slice(0,10) || ''
+      const msgs = (l.messages||[]).filter((_,i)=>!(i===0&&l.messages[i].role==='assistant'))
+        .map(m=>`${m.role==='user'?'Me':'Daisy'}: ${m.content}`).join('\n')
+      return `═══ ${date} ═══\n\n${l.summary||''}\n\n${msgs}`
+    }).join('\n\n\n')
+    const blob = new Blob([`DAISY DIARY\n${'═'.repeat(40)}\n\n${text}`], {type:'text/plain'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href=url; a.download='my-daisy-diary.txt'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Filter by search
+  const filtered = search.trim()
+    ? logs.filter(l =>
+        l.summary?.toLowerCase().includes(search.toLowerCase()) ||
+        (l.messages||[]).some(m=>m.content?.toLowerCase().includes(search.toLowerCase()))
+      )
+    : logs
 
   // Sort by date desc — each log is one day
   const sorted = [...logs].sort((a, b) => {
@@ -126,12 +173,28 @@ function LogsView({ logs, onResume }) {
   return (
     <div style={{flex:1,overflowY:'auto',padding:'clamp(20px,4vw,44px)',WebkitOverflowScrolling:'touch'}}>
       <div style={{maxWidth:700,margin:'0 auto'}}>
-        <div style={{fontSize:24,fontWeight:800,color:'#C9A84C',marginBottom:4}}>Your Diary</div>
-        <div style={{fontSize:15,fontWeight:400,color:'#6a6258',marginBottom:40,lineHeight:1.6}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4,flexWrap:'wrap',gap:10}}>
+          <div style={{fontSize:24,fontWeight:800,color:'#C9A84C'}}>Your Diary</div>
+          <button onClick={exportDiary} title="Export diary"
+            style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'7px 14px',color:'#6a6258',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all 0.2s',letterSpacing:'0.04em'}}
+            onMouseEnter={e=>{e.currentTarget.style.color='#C9A84C';e.currentTarget.style.borderColor='rgba(201,168,76,0.3)'}}
+            onMouseLeave={e=>{e.currentTarget.style.color='#6a6258';e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}}>
+            ↓ Export
+          </button>
+        </div>
+        <div style={{fontSize:15,fontWeight:400,color:'#6a6258',marginBottom:16,lineHeight:1.6}}>
           {logs.length} day{logs.length !== 1 ? 's' : ''} of conversations
         </div>
+        {/* Search */}
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search your diary..."
+          style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'11px 16px',color:'#eae0cc',fontSize:14,marginBottom:28,outline:'none',boxSizing:'border-box',transition:'border-color 0.2s'}}
+          onFocus={e=>e.target.style.borderColor='rgba(201,168,76,0.4)'}
+          onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.08)'}
+        />
 
-        {sorted.map((log) => {
+        {[...filtered].sort((a,b)=>(b.log_date||b.created_at)>(a.log_date||a.created_at)?1:-1).map((log) => {
           const isOpen = expanded === log.id
           const dateLabel = fmtDate(log.log_date || log.created_at)
           const msgs = log.messages || []
@@ -207,10 +270,30 @@ function LogsView({ logs, onResume }) {
 }
 
 // ─── Letter View ──────────────────────────────────────────────
-function LetterView({ memories, userName, letters, setLetters }) {
+function LetterView({ memories, userName, letters, setLetters, logs }) {
   const [generating, setGenerating] = useState(false)
+  const [generatingWeekly, setGeneratingWeekly] = useState(false)
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState('')
+
+  const generateWeeklyLetter = async () => {
+    if (!memories.length) return
+    setGeneratingWeekly(true)
+    setError('')
+    try {
+      // Get last 7 days of diary
+      const weekAgo = new Date(Date.now()-7*86400000).toISOString().slice(0,10)
+      const recentLogs = (logs||[]).filter(l=>(l.log_date||'')>=weekAgo)
+      const recentDiary = recentLogs.map(l=>l.summary).filter(Boolean)
+      const text = await callDaisy({ messages:[{role:'user',content:`Write my weekly letter. This week's diary: ${recentDiary.join(' | ')}`}], memories, mode:'weekly', userName, recentDiary })
+      const letter = { id: Date.now(), text, date: new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}), type:'weekly' }
+      const updated = [letter, ...letters]
+      setLetters(updated)
+      setSelected(letter)
+      try { localStorage.setItem('daisy_letters', JSON.stringify(updated.slice(0,20))) } catch{}
+    } catch(e) { setError('Could not generate letter. Try again.') }
+    finally { setGeneratingWeekly(false) }
+  }
 
   const generateLetter = async () => {
     setError(''); setGenerating(true)
@@ -254,6 +337,13 @@ function LetterView({ memories, userName, letters, setLetters }) {
           {generating?<><span style={{animation:'blink 0.8s ease infinite'}}>🌼</span> Writing your letter...</>:<>🌼 Write Me a Letter</>}
         </button>
 
+        <button onClick={generateWeeklyLetter} disabled={generatingWeekly||generating||memories.length<3}
+          style={{padding:'11px 32px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,color:memories.length>=3?'#8a7f72':'#4a4540',fontSize:14,fontWeight:600,cursor:memories.length>=3&&!generatingWeekly?'pointer':'not-allowed',transition:'all 0.2s',marginBottom:40,display:'flex',alignItems:'center',gap:8}}
+          onMouseEnter={e=>{if(memories.length>=3&&!generatingWeekly) e.currentTarget.style.borderColor='rgba(201,168,76,0.25)'}}
+          onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+          {generatingWeekly?<><span style={{animation:'blink 0.8s ease infinite'}}>📅</span> Writing your week...</>:<>📅 This Week's Letter</>}
+        </button>
+
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {letters.map(l=>(
             <div key={l.id} onClick={()=>setSelected(l)}
@@ -271,7 +361,62 @@ function LetterView({ memories, userName, letters, setLetters }) {
 }
 
 // ─── Profile View ─────────────────────────────────────────────
-function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, onUpdateName }) {
+
+// ─── Mood Chart ───────────────────────────────────────────────
+const EMOTION_COLORS = {
+  joy:'#C9A84C', happy:'#C9A84C', love:'#e87676', excited:'#76c4e8',
+  grateful:'#82c77a', hopeful:'#a882c7', neutral:'#6a6258',
+  sad:'#5a7acc', sadness:'#5a7acc', anxious:'#e8a876', anxiety:'#e8a876',
+  anger:'#cc5a5a', angry:'#cc5a5a', melancholy:'#8a7acc', reflective:'#9a9a6a',
+}
+function MoodChart({ memories }) {
+  const last30 = [...memories]
+    .filter(m => m.created_at)
+    .sort((a,b) => new Date(a.created_at)-new Date(b.created_at))
+    .slice(-30)
+
+  if (last30.length < 3) return (
+    <div style={{textAlign:'center',padding:'24px',color:'#4a4540',fontSize:14}}>
+      Chat more to see your mood trend 🌼
+    </div>
+  )
+
+  const emotionToScore = { joy:9,happy:9,love:8,excited:8,grateful:8,hopeful:7,neutral:5,reflective:5,melancholy:4,anxious:3,anxiety:3,sad:2,sadness:2,anger:1,angry:1 }
+  const points = last30.map((m,i) => ({
+    x: i / (last30.length-1) * 100,
+    y: 100 - ((emotionToScore[m.emotion]||5) / 9 * 80 + 10),
+    emotion: m.emotion,
+    color: EMOTION_COLORS[m.emotion] || '#6a6258',
+  }))
+
+  const pathD = points.map((p,i) => `${i===0?'M':'L'}${p.x},${p.y}`).join(' ')
+
+  return (
+    <div style={{marginBottom:28}}>
+      <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#6a6258',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Mood — last {last30.length} memories</div>
+      <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:'16px',overflow:'hidden'}}>
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" style={{width:'100%',height:80}}>
+          <defs>
+            <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#C9A84C" stopOpacity="0.3"/>
+              <stop offset="100%" stopColor="#C9A84C" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d={pathD + ` L100,60 L0,60 Z`} fill="url(#moodGrad)"/>
+          <path d={pathD} fill="none" stroke="#C9A84C" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/>
+          {points.map((p,i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="1.2" fill={p.color}/>
+          ))}
+        </svg>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:6,fontFamily:'DM Mono,monospace',fontSize:10,color:'#4a4540'}}>
+          <span>older</span><span>recent</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, onUpdateName, streak=0 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -375,6 +520,18 @@ function ProfileView({ session, profile, memories, onSignOut, onDeleteAccount, o
             </div>
           ))}
         </div>
+
+        {/* Mood chart */}
+        <MoodChart memories={memories}/>
+
+        {/* Streak */}
+        {streak > 0 && (
+          <div style={{textAlign:'center',marginBottom:28,padding:'14px',background:'rgba(201,168,76,0.06)',border:'1px solid rgba(201,168,76,0.15)',borderRadius:12}}>
+            <div style={{fontSize:28,marginBottom:4}}>🔥</div>
+            <div style={{fontSize:22,fontWeight:800,color:'#C9A84C'}}>{streak} day{streak!==1?'s':''}</div>
+            <div style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#6a6258',letterSpacing:'0.08em',textTransform:'uppercase'}}>check-in streak</div>
+          </div>
+        )}
 
         {themes.length>0&&<div style={{marginBottom:32}}>
           <div style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:'#6a6258',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Your Themes</div>
@@ -504,12 +661,35 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
     return lower.includes('forget') || lower.includes('delete that') || lower.includes('erase that') || lower.includes('don\'t remember') || lower.includes('remove that')
   }
 
+  // Voice input
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef(null)
+
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return alert('Voice not supported in this browser')
+    const r = new SR()
+    r.lang = 'en-IN'
+    r.continuous = false
+    r.interimResults = false
+    r.onstart = () => setListening(true)
+    r.onend = () => setListening(false)
+    r.onresult = (e) => {
+      const transcript = e.results[0][0].transcript
+      setInput(prev => prev ? prev + ' ' + transcript : transcript)
+    }
+    r.onerror = () => setListening(false)
+    recognitionRef.current = r
+    r.start()
+  }
+
   const send=async()=>{
     const text=input.trim()
     if(!text||thinking) return
     setInput('')
     if(inputRef.current){inputRef.current.style.height='50px'}
-    const updated=[...messages,{role:'user',content:text}]
+    const now = new Date().toISOString()
+    const updated=[...messages,{role:'user',content:text,time:now}]
     setMessages(updated)
     setThinking(true)
     try{
@@ -537,7 +717,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
       } else {
         // Normal chat — pass recent diary context
         const reply=await callDaisy({messages:updated, memories, mode:'chat', userName, recentDiary})
-        const withReply=[...updated,{role:'assistant',content:reply}]
+        const withReply=[...updated,{role:'assistant',content:reply,time:new Date().toISOString()}]
         setMessages(withReply)
         if(updated.filter(m=>m.role==='user').length%3===0) extractMemories(withReply)
       }
@@ -596,6 +776,11 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
           </button>
         </div>
         <div style={{display:'flex',gap:10,alignItems:'flex-end'}}>
+          {/* Voice input button */}
+          <button onClick={startVoice} title="Voice input"
+            style={{flexShrink:0,width:44,height:44,borderRadius:12,background:listening?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)',border:`1px solid ${listening?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.08)'}`,color:listening?'#C9A84C':'#5a5045',fontSize:18,cursor:'pointer',transition:'all 0.2s',display:'flex',alignItems:'center',justifyContent:'center',WebkitTapHighlightColor:'transparent',animation:listening?'pulse 1s ease infinite':'none'}}>
+            {listening ? '⏹' : '🎙'}
+          </button>
           <textarea
             ref={inputRef} rows={1} value={input}
             placeholder={`Talk to Daisy…`}
@@ -640,6 +825,7 @@ export default function Sanctum({ session }) {
   const [letters,setLetters]   = useState([])
   const [logs,setLogs]         = useState([])
   const [pushAsked,setPushAsked] = useState(false)
+  const [streak,setStreak]       = useState(0)
   const nav = useNavigate()
 
   useEffect(()=>{
@@ -652,7 +838,24 @@ export default function Sanctum({ session }) {
     supabase.from('memories').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
       .then(({data})=>{if(data) setMemories(data)})
     supabase.from('conversation_logs').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
-      .then(({data})=>{if(data) setLogs(data)})
+      .then(({data})=>{
+        if(data) {
+          setLogs(data)
+          // Compute streak
+          const dates = [...new Set(data.map(l => l.log_date).filter(Boolean))].sort().reverse()
+          let s = 0
+          const today = new Date().toISOString().slice(0,10)
+          const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10)
+          let expected = dates[0] === today || dates[0] === yesterday ? dates[0] : null
+          if (expected) {
+            for (const d of dates) {
+              if (d === expected) { s++; const dt = new Date(expected); dt.setDate(dt.getDate()-1); expected = dt.toISOString().slice(0,10) }
+              else break
+            }
+          }
+          setStreak(s)
+        }
+      })
     try{const s=localStorage.getItem('daisy_letters');if(s) setLetters(JSON.parse(s))}catch{}
   },[session.user.id])
 
@@ -663,15 +866,27 @@ export default function Sanctum({ session }) {
     const name = profile.name || 'friend'
     let greeting
     if(memories.length === 0) {
-      // First time — introduce name naturally through the space, not "Hi I'm Daisy"
       greeting = `${g}, ${name}. I'm Daisy — this is your space. No rush, no agenda. What's going on with you?`
     } else {
-      const note = memories.length < 5
-        ? ` I've been thinking about what you shared last time.`
-        : ` I've been holding ${memories.length} of your stars.`
-      greeting = `${g}, ${name}.${note} What's on your mind today?`
+      // Every 3rd visit, Daisy asks something specific from an old memory
+      const visitCount = parseInt(localStorage.getItem('daisy_visits')||'0') + 1
+      localStorage.setItem('daisy_visits', visitCount)
+      const shouldAsk = visitCount % 3 === 0 && memories.length >= 3
+      if (shouldAsk) {
+        const recent = memories.slice(0, 5)
+        const pick = recent[Math.floor(Math.random()*recent.length)]
+        const followups = [
+          `Last time you mentioned ${pick.content.toLowerCase().replace(/^(they|you) (said|mentioned|talked about|shared that) /i,'').slice(0,60)}... how's that going?`,
+          `I've been thinking about something you shared — ${pick.content.slice(0,60).toLowerCase()}... any updates?`,
+          `Still thinking about what you told me — ${pick.content.slice(0,55)}. How are you feeling about it now?`,
+        ]
+        greeting = `${g}, ${name}. 🌼 ${followups[Math.floor(Math.random()*followups.length)]}`
+      } else {
+        const note = memories.length < 5 ? ` I've been thinking about what you shared.` : ` I've been holding ${memories.length} of your stars.`
+        greeting = `${g}, ${name}.${note} What's on your mind today?`
+      }
     }
-    setMessages([{role:'assistant', content: greeting}])
+    setMessages([{role:'assistant', content: greeting, time: new Date().toISOString()}])
   },[profile?.id])
 
   // One diary entry per calendar day
@@ -741,7 +956,8 @@ export default function Sanctum({ session }) {
     // Add a small resume note from Daisy at the end
     const resumeNote = {
       role: 'assistant',
-      content: `Picking up where we left off. 🌼`
+      content: `Picking up where we left off. 🌼`,
+      time: new Date().toISOString()
     }
     setChatKey(k => k + 1)
     setMessages([...msgs, resumeNote])
@@ -828,9 +1044,9 @@ export default function Sanctum({ session }) {
 
         {view==='chat'         && <ChatView key={chatKey} messages={messages} setMessages={setMessages} memories={memories} setMemories={setMemories} profile={profile} session={session} onSaveLog={handleSaveLog} onNewChat={handleNewChat} logs={logs}/>}
         {view==='constellation'&& <ConstellationView memories={memories}/>}
-        {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters}/>}
-        {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat}/>}
-        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount} onUpdateName={handleUpdateName}/>}
+        {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters} logs={logs}/>}
+        {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat} memories={memories}/>}
+        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount} onUpdateName={handleUpdateName} streak={streak}/>}
       </div>
     </div>
   )
