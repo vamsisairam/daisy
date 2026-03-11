@@ -153,10 +153,12 @@ function LogsView({ logs, onResume, memories }) {
 
   const fmtDate = (dateStr) => {
     const d = new Date(dateStr + (dateStr.length === 10 ? 'T12:00:00' : ''))
-    const today = new Date()
-    const yesterday = new Date(); yesterday.setDate(today.getDate() - 1)
-    if (d.toDateString() === today.toDateString()) return 'Today'
-    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+    const todayIST = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
+    const yestDate = new Date(Date.now() - 86400000)
+    const yesterdayIST = yestDate.toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
+    const dStr = dateStr.length === 10 ? dateStr : d.toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
+    if (dStr === todayIST) return 'Today'
+    if (dStr === yesterdayIST) return 'Yesterday'
     return d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
   }
 
@@ -844,8 +846,8 @@ export default function Sanctum({ session }) {
           // Compute streak
           const dates = [...new Set(data.map(l => l.log_date).filter(Boolean))].sort().reverse()
           let s = 0
-          const today = new Date().toISOString().slice(0,10)
-          const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10)
+          const today = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
+          const yesterday = new Date(Date.now()-86400000).toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'})
           let expected = dates[0] === today || dates[0] === yesterday ? dates[0] : null
           if (expected) {
             for (const d of dates) {
@@ -895,7 +897,7 @@ export default function Sanctum({ session }) {
     const newUserMsgs = msgs.filter(m => m.role === 'user')
     if (newUserMsgs.length < 1) return
     const userName = profile?.name || 'friend'
-    const logDate = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
+    const logDate = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'}) // YYYY-MM-DD in IST
     try {
       // Check if today already has an entry
       const { data: existing } = await supabase
