@@ -78,7 +78,8 @@ Return ONLY the diary text — no title, no date, no label, no formatting.`,
     } else if (mode === 'forget') {
       anthropicMessages = [{ role: 'user', content: messages[messages.length - 1]?.content || '' }];
     } else {
-      anthropicMessages = messages;
+      // Strip any extra fields (time, etc) — Anthropic only accepts role + content
+      anthropicMessages = messages.map(m => ({ role: m.role, content: m.content }))
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
