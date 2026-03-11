@@ -639,11 +639,16 @@ export default function Sanctum({ session }) {
   const [messages,setMessages] = useState([])
   const [letters,setLetters]   = useState([])
   const [logs,setLogs]         = useState([])
+  const [pushAsked,setPushAsked] = useState(false)
   const nav = useNavigate()
 
   useEffect(()=>{
     supabase.from('profiles').select('*').eq('id',session.user.id).single()
-      .then(({data})=>{if(data) setProfile(data); else supabase.from('profiles').insert({id:session.user.id,name:'Wanderer'})})
+      .then(({data})=>{
+        if(data) setProfile(data)
+        else supabase.from('profiles').insert({id:session.user.id,name:'Wanderer'}).select().single()
+          .then(({data:p})=>{ if(p) setProfile(p) })
+      })
     supabase.from('memories').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
       .then(({data})=>{if(data) setMemories(data)})
     supabase.from('conversation_logs').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
@@ -716,7 +721,9 @@ export default function Sanctum({ session }) {
         })
       }
     } catch(e) { console.log('Log save skipped:', e.message) }
-  }, [memories, profile, session.user.id])
+    // Ask for push permission after first save — feels natural here
+    requestPushIfNeeded()
+  }, [memories, profile, session.user.id, pushAsked])
 
   // Start a fresh chat window — saves current one first
   const handleNewChat = useCallback(async () => {
@@ -740,6 +747,29 @@ export default function Sanctum({ session }) {
     setMessages([...msgs, resumeNote])
     setView('chat')
   }, [])
+
+  const requestPushIfNeeded = async () => {
+    if (pushAsked) return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    if (Notification.permission !== 'default') return
+    setPushAsked(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const perm = await Notification.requestPermission()
+      if (perm !== 'granted') return
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      if (!vapidKey) return
+      const raw = vapidKey.replace(/-/g,'+').replace(/_/g,'/')
+      const padding = '='.repeat((4 - raw.length % 4) % 4)
+      const binary = window.atob(raw + padding)
+      const key = new Uint8Array([...binary].map(c=>c.charCodeAt(0)))
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:key })
+      await fetch('/api/subscribe', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ subscription: sub, user_id: session.user.id })
+      })
+    } catch(e) { console.log('Push skipped:', e.message) }
+  }
 
   const handleUpdateName = async (newName) => {
     await supabase.from('profiles').update({ name: newName }).eq('id', session.user.id)
