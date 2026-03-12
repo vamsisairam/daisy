@@ -106,7 +106,7 @@ function ConstellationView({ memories }) {
         </div>
       )}
       <div style={{position:'absolute',bottom:20,left:0,right:0,display:'flex',justifyContent:'center',gap:16,flexWrap:'wrap',pointerEvents:'none',padding:'0 16px'}}>
-        {Object.entries(EMOTION_COLOR).slice(0,6).map(([emo,col])=>(
+        {Object.entries(EMOTION_COLOR).map(([emo,col])=>(
           <div key={emo} style={{display:'flex',alignItems:'center',gap:5,fontFamily:'DM Mono,monospace',fontSize:11,color:'#6a6258'}}>
             <div style={{width:7,height:7,borderRadius:'50%',background:col}}/>{emo}
           </div>
