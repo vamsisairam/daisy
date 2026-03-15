@@ -82,7 +82,10 @@ Return ONLY the diary text — no title, no date, no label, no formatting.`,
       anthropicMessages = messages.map(m => ({ role: m.role, content: m.content }))
     }
 
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 25000) // 25s — under Vercel's 30s limit
     const response = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: controller.signal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,13 +94,15 @@ Return ONLY the diary text — no title, no date, no label, no formatting.`,
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: mode === 'letter' ? 900 : mode === 'extract' ? 400 : mode === 'summarize' ? 400 : 600,
+        max_tokens: mode === 'letter' || mode === 'weekly' ? 900 : mode === 'extract' ? 400 : mode === 'summarize' ? 400 : 600,
         system: systems[mode] || systems.chat,
         messages: anthropicMessages,
       }),
     });
 
+    clearTimeout(timeout)
     const data = await response.json();
+    if (data.error) return res.status(500).json({ error: data.error.message || 'API error' });
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });

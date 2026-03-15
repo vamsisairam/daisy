@@ -566,9 +566,14 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
     const msgs = messagesRef.current
     if (msgs.filter(m=>m.role==='user').length < 1) return
     setSaveStatus('saving')
-    await onSaveLog(msgs)
-    setSaveStatus('saved')
-    setTimeout(() => setSaveStatus(null), 3000)
+    try {
+      await onSaveLog(msgs)
+      setSaveStatus('saved')
+    } catch(e) {
+      setSaveStatus('error')
+      console.error('Save failed:', e.message)
+    }
+    setTimeout(() => setSaveStatus(null), 4000)
   }, [onSaveLog])
 
   // 1-minute idle timer
@@ -595,7 +600,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   const extractMemories=useCallback(async(msgs)=>{
     if(msgs.filter(m=>m.role==='user').length<2) return
     try{
-      const raw=await callDaisy({messages:msgs,memories:memoriesSRef?.current||memories,mode:'extract',userName})
+      const raw=await callDaisy({messages:msgs.slice(-12),memories:memoriesSRef?.current||memories,mode:'extract',userName})
       const extracted=JSON.parse(raw.replace(/```json|```/g,'').trim())
       if(Array.isArray(extracted)&&extracted.length>0){
         const{data}=await supabase.from('memories').insert(extracted.filter(e=>e.content).map(m=>({...m,user_id:session.user.id}))).select()
@@ -663,10 +668,10 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
             // Remove from local state
             setMemories(prev => prev.filter(m => !parsed.delete.includes(m.id)))
             const reply = `Done — I've let that go. It's gone from my memory. 🌼`
-            setMessages([...updated, {role:'assistant', content: reply}])
+            setMessages([...updated, {role:'assistant', content: reply, time: new Date().toISOString()}])
           } else {
             const reply = parsed.message || `I looked through what I remember, but I couldn't find anything specific about that.`
-            setMessages([...updated, {role:'assistant', content: reply}])
+            setMessages([...updated, {role:'assistant', content: reply, time: new Date().toISOString()}])
           }
         }catch{
           setMessages([...updated, {role:'assistant', content:"I tried to forget that but something went wrong on my end."}])
@@ -718,9 +723,9 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
       {/* Status bar */}
       {saveStatus && (
         <div style={{padding:'6px 20px',background:'rgba(0,0,0,0.25)',borderTop:'1px solid rgba(255,255,255,0.04)',display:'flex',alignItems:'center',gap:8,flexShrink:0,animation:'fadeIn 0.3s ease'}}>
-          <div style={{width:6,height:6,borderRadius:'50%',background:saveStatus==='saved'?'#52c77a':'#C9A84C',animation:saveStatus==='saving'?'blink 0.8s ease infinite':'none'}}/>
+          <div style={{width:6,height:6,borderRadius:'50%',background:saveStatus==='saved'?'#52c77a':saveStatus==='error'?'#e87676':'#C9A84C',animation:saveStatus==='saving'?'blink 0.8s ease infinite':'none'}}/>
           <span style={{fontFamily:'DM Mono,monospace',fontSize:11,fontWeight:500,color:saveStatus==='saved'?'#52c77a':'#C9A84C',letterSpacing:'0.06em'}}>
-            {saveStatus==='saving'?'Saving to diary…':'Saved to diary'}
+            {saveStatus==='saving'?'Saving to diary…':saveStatus==='error'?'Save failed — check connection':'Saved to diary'}
           </span>
         </div>
       )}
@@ -785,8 +790,9 @@ export default function Sanctum({ session }) {
   const [messages,setMessages] = useState([])
   const [letters,setLetters]   = useState([])
   const [logs,setLogs]         = useState([])
-  const [pushAsked,setPushAsked] = useState(false)
-  const [streak,setStreak]       = useState(0)
+  const [pushAsked,setPushAsked]     = useState(false)
+  const [streak,setStreak]           = useState(0)
+  const [memoriesLoaded,setMemoriesLoaded] = useState(false)
   const profileRef  = useRef(null)
   const memoriesSRef = useRef([])
   const nav = useNavigate()
@@ -795,11 +801,11 @@ export default function Sanctum({ session }) {
     supabase.from('profiles').select('*').eq('id',session.user.id).single()
       .then(({data})=>{
         if(data) { setProfile(data); profileRef.current = data }
-        else supabase.from('profiles').insert({id:session.user.id,name:'Wanderer'}).select().single()
-          .then(({data:p})=>{ if(p) { setProfile(p); profileRef.current = p } })
+        else supabase.from('profiles').upsert({id:session.user.id,name:'Wanderer'},{onConflict:'id'}).select().single()
+          .then(({data:p, error:e})=>{ if(e) console.error('Profile create error:', e.message); if(p) { setProfile(p); profileRef.current = p } })
       })
     supabase.from('memories').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
-      .then(({data})=>{if(data) { setMemories(data); memoriesSRef.current = data }})
+      .then(({data, error})=>{ if(error) console.error('Memories load error:', error.message); setMemories(data||[]); memoriesSRef.current = data||[]; setMemoriesLoaded(true) })
     supabase.from('conversation_logs').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false})
       .then(({data})=>{
         if(data) {
@@ -854,7 +860,7 @@ export default function Sanctum({ session }) {
       }
     }
     setMessages([{role:'assistant', content: greeting, time: new Date().toISOString()}])
-  },[profile?.id])
+  },[profile?.id, memoriesLoaded])
 
   // One diary entry per calendar day
   // Uses refs so it never goes stale and never needs to be recreated
@@ -906,7 +912,7 @@ export default function Sanctum({ session }) {
           return [data[0], ...rest]
         })
       }
-    } catch(e) { console.error('Diary save error:', e.message) }
+    } catch(e) { console.error('Diary save error:', e.message); throw e }
     requestPushIfNeeded()
   }, [session.user.id])
 
@@ -959,7 +965,7 @@ export default function Sanctum({ session }) {
 
   const handleUpdateName = async (newName) => {
     await supabase.from('profiles').update({ name: newName }).eq('id', session.user.id)
-    setProfile(prev => ({ ...prev, name: newName }))
+    setProfile(prev => { const updated = { ...prev, name: newName }; profileRef.current = updated; return updated })
   }
 
   const handleDeleteAccount = async () => {
@@ -981,7 +987,7 @@ export default function Sanctum({ session }) {
   const signOut=async()=>{await supabase.auth.signOut();nav('/')}
 
   return (
-    <div style={{height:'100vh',height:'100dvh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f38 0%, #060d1a 60%)',overflow:'hidden'}}>
+    <div style={{height:'100dvh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f38 0%, #060d1a 60%)',overflow:'hidden'}}>
 
       {/* Sidebar / Bottom Tab */}
       <div className="sidebar">
@@ -1016,7 +1022,7 @@ export default function Sanctum({ session }) {
         {view==='constellation'&& <ConstellationView memories={memories}/>}
         {view==='letters'      && <LetterView memories={memories} userName={profile?.name||'friend'} letters={letters} setLetters={setLetters} logs={logs}/>}
         {view==='logs'         && <LogsView logs={logs} onResume={handleResumeChat} memories={memories}/>}
-        {view==='profile'      && <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount} onUpdateName={handleUpdateName} streak={streak}/>}
+        {view==='profile'      && (profile ? <ProfileView session={session} profile={profile} memories={memories} onSignOut={signOut} onDeleteAccount={handleDeleteAccount} onUpdateName={handleUpdateName} streak={streak}/> : <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'#4a4540',fontSize:14}}>Loading…</div>)}
       </div>
     </div>
   )
