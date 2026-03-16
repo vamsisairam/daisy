@@ -565,6 +565,7 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
   const doSave = useCallback(async () => {
     const msgs = messagesRef.current
     if (msgs.filter(m=>m.role==='user').length < 1) return
+    saveTimerRef.current = null  // clear so next message can schedule a fresh timer
     setSaveStatus('saving')
     try {
       await onSaveLog(msgs)
@@ -576,25 +577,44 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
     setTimeout(() => setSaveStatus(null), 4000)
   }, [onSaveLog])
 
-  // 1-minute idle timer
+  // 1-minute idle timer — resets only when message COUNT changes
+  // Combined with the 10s post-reply timer in send(), this means:
+  // - saves 10s after each reply (normal case)
+  // - saves after 60s of silence (safety net)
   useEffect(()=>{
     const userMsgs = messages.filter(m=>m.role==='user')
     if(userMsgs.length < 1) return
-    clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(doSave, 60000)
-    return () => clearTimeout(saveTimerRef.current)
+    // Don't reset if a timer is already running — let it fire
+    if (!saveTimerRef.current) {
+      saveTimerRef.current = setTimeout(doSave, 60000)
+    }
+    return () => {}
   }, [messages.length, doSave])
 
-  // Mobile: save when user switches app or locks screen
+  // Save on: tab switch, app minimize, screen lock, browser close
   useEffect(()=>{
-    const handleVisibility = () => {
+    const handleHide = () => {
       if (document.visibilityState === 'hidden') {
         clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
         doSave()
       }
     }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+    const handleUnload = () => {
+      // Best-effort sync save on tab close — use sendBeacon for reliability
+      const msgs = messagesRef.current
+      if (msgs.filter(m=>m.role==='user').length < 1) return
+      // Can't await here — just fire doSave
+      doSave()
+    }
+    document.addEventListener('visibilitychange', handleHide)
+    window.addEventListener('pagehide', handleUnload)
+    window.addEventListener('beforeunload', handleUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', handleHide)
+      window.removeEventListener('pagehide', handleUnload)
+      window.removeEventListener('beforeunload', handleUnload)
+    }
   }, [doSave])
 
   const extractMemories=useCallback(async(msgs)=>{
@@ -683,9 +703,9 @@ function ChatView({ messages, setMessages, memories, setMemories, profile, sessi
         setMessages(withReply)
         // Extract memories every 3rd user message
         if(updated.filter(m=>m.role==='user').length%3===0) extractMemories(withReply)
-        // Save to diary after every exchange — also resets the idle timer
+        // Save to diary 10s after each reply (doSave uses messagesRef so it always has latest)
         clearTimeout(saveTimerRef.current)
-        saveTimerRef.current = setTimeout(() => onSaveLog(withReply), 10000)
+        saveTimerRef.current = setTimeout(doSave, 10000)
       }
     }catch{
       setMessages(prev=>[...prev,{role:'assistant',content:'Something went wrong. Try again? 🌼'}])
@@ -984,7 +1004,15 @@ export default function Sanctum({ session }) {
     }
   }
 
-  const signOut=async()=>{await supabase.auth.signOut();nav('/')}
+  const signOut = async () => {
+    // Save diary before signing out
+    const chatMsgs = messages.filter(m => m.role === 'user')
+    if (chatMsgs.length >= 1) {
+      try { await handleSaveLog(messages) } catch(e) { console.log('Sign-out save skipped:', e.message) }
+    }
+    await supabase.auth.signOut()
+    nav('/')
+  }
 
   return (
     <div style={{height:'100dvh',display:'flex',background:'radial-gradient(ellipse at 20% 10%, #0d1f38 0%, #060d1a 60%)',overflow:'hidden'}}>

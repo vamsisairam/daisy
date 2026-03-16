@@ -36,7 +36,7 @@ export default function Auth() {
             throw new Error('Wrong email or password. Please try again.')
           }
           if (err.message.includes('Email not confirmed')) {
-            throw new Error("Please confirm your email first, you're closerrrr-errrrr")
+            throw new Error('Please confirm your email first, or just try signing in — it usually works anyway.')
           }
           throw err
         }
